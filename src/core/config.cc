@@ -1,0 +1,124 @@
+#include <exception>
+#include <iostream>
+#include <sstream>
+
+#include "config.h"
+
+namespace proxy {
+namespace core {
+
+bool ProxyConfig::parse() {
+
+    boost::property_tree::ptree pt;
+
+    try {
+
+        boost::property_tree::ini_parser::read_ini(_config_path, pt);
+
+    } catch (const boost::property_tree::ini_parser_error &ex) {
+
+        std::cerr << "parse the config file error: " << ex.what() << std::endl;
+        return false;
+
+    } catch (const std::exception &stdex) {
+
+        std::cerr << "parse the config file with unknown exception: " << stdex.what() << std::endl;
+        return false;
+
+    }
+
+    return _extract_and_validate(pt);
+}
+
+bool ProxyConfig::_extract_and_validate(const boost::property_tree::ptree &pt) {
+
+    std::string mode;
+
+    try {
+
+        _local_host = pt.get<std::string>("proxy.local_host");
+        _local_port = pt.get<short>("proxy.local_port");
+
+        mode = pt.get<std::string>("proxy.mode");
+        if (mode == "encryption") {
+            _mode = ProxyServerType::Encryption;
+        } else if (mode == "decryption") {
+            _mode = ProxyServerType::Decryption;
+        } else if (mode == "transmission") {
+            _mode = ProxyServerType::Transmission;
+        } else {
+            std::cerr << "unknown proxy mode: " << mode << std::endl;
+            return false;
+        }
+
+        if(_mode == ProxyServerType::Encryption || _mode == ProxyServerType::Transmission) {
+            _remote_host = pt.get<std::string>("proxy.remote_host");
+            _remote_port = pt.get<short>("proxy.remote_port");
+        }
+
+        _log_dir = pt.get<std::string>("log.dir");
+        _log_max_size = pt.get<int>("log.max_size", 512);
+        _log_full_stop = pt.get<int>("log.full_stop", 0) ? true : false;
+
+    } catch(const boost::property_tree::ptree_bad_path &bpex) {
+
+        std::cerr << "unknown configuration item: " << bpex.what() << std::endl;
+        return false;
+
+    } catch(const boost::property_tree::ptree_bad_data &bdex) {
+
+        std::cerr << "bad configuration value: " << bdex.what() << std::endl;
+        return false;
+
+    } catch(const std::exception &stdex) {
+
+        std::cerr << "unknown exception when extract the configuration: "
+            << stdex.what() << std::endl;
+        return false;
+
+    }
+
+    return true;
+
+}
+
+std::string ProxyConfig::to_string() const {
+
+    std::ostringstream oss;
+
+    oss << "config.file.path:" << config_abs_path() << "\n";
+
+    oss << "proxy.mode:";
+    switch(_mode) {
+        case ProxyServerType::Encryption:
+            oss << "encryption";
+            break;
+        case ProxyServerType::Decryption:
+            oss << "decryption";
+            break;
+        case ProxyServerType::Transmission:
+            oss << "transmission";
+            break;
+        default:
+            oss << "unknown";
+            break;
+    }
+    oss << "\n";
+    oss << "proxy.local_host:" << _local_host << "\n";
+    oss << "proxy.local_port:" << _local_port << "\n";
+    if(_mode == ProxyServerType::Encryption || _mode == ProxyServerType::Transmission) {
+        oss << "proxy.remote_host:" << _remote_host << "\n";
+        oss << "proxy.remote_port:" << _remote_port << "\n";
+    }
+
+    oss << "log.dir:" << log_abs_dir() << "\n";
+    oss << "log.max_size:" << _log_max_size << "\n";
+    oss << "log.full_stop:" << _log_full_stop;
+
+    return oss.str();
+
+}
+
+}
+}
+
