@@ -39,16 +39,20 @@ public:
         return _remote_host;
     }
 
-    short local_port() const {
+    uint16_t local_port() const {
         return _local_port;
     }
 
-    short remote_port() const {
+    uint16_t remote_port() const {
         return _remote_port;
     }
 
     ProxyServerType mode() const {
         return _mode;
+    }
+
+    int listen_backlog() const {
+        return _listen_backlog;
     }
 
     std::string log_dir() const {
@@ -78,10 +82,11 @@ private:
 
     // the config of the proxy
     std::string _local_host;
-    short _local_port;
+    uint16_t _local_port;
     std::string _remote_host;
-    short _remote_port;
+    uint16_t _remote_port;
     ProxyServerType _mode;
+    int _listen_backlog;
 
     // the config of the logger
     std::string _log_dir;
@@ -93,7 +98,6 @@ private:
 
 }
 }
-
 
 
 #endif

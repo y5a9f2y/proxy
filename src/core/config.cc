@@ -37,7 +37,7 @@ bool ProxyConfig::_extract_and_validate(const boost::property_tree::ptree &pt) {
     try {
 
         _local_host = pt.get<std::string>("proxy.local_host");
-        _local_port = pt.get<short>("proxy.local_port");
+        _local_port = pt.get<uint16_t>("proxy.local_port");
 
         mode = pt.get<std::string>("proxy.mode");
         if (mode == "encryption") {
@@ -53,8 +53,9 @@ bool ProxyConfig::_extract_and_validate(const boost::property_tree::ptree &pt) {
 
         if(_mode == ProxyServerType::Encryption || _mode == ProxyServerType::Transmission) {
             _remote_host = pt.get<std::string>("proxy.remote_host");
-            _remote_port = pt.get<short>("proxy.remote_port");
+            _remote_port = pt.get<uint16_t>("proxy.remote_port");
         }
+        _listen_backlog = pt.get<int>("proxy.listen_backlog");
 
         _log_dir = pt.get<std::string>("log.dir");
         _log_max_size = pt.get<int>("log.max_size", 512);
@@ -110,6 +111,7 @@ std::string ProxyConfig::to_string() const {
         oss << "proxy.remote_host:" << _remote_host << "\n";
         oss << "proxy.remote_port:" << _remote_port << "\n";
     }
+    oss << "proxy.listen_backlog:" << _listen_backlog << "\n";
 
     oss << "log.dir:" << log_abs_dir() << "\n";
     oss << "log.max_size:" << _log_max_size << "\n";

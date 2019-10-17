@@ -27,6 +27,8 @@ endif()
 
 add_library(libglog STATIC IMPORTED)
 set_target_properties(libglog PROPERTIES IMPORTED_LOCATION "/usr/local/lib/libglog.a")
+add_library(libcoroutine STATIC IMPORTED)
+set_target_properties(libcoroutine PROPERTIES IMPORTED_LOCATION "/usr/local/lib/libcoroutine.a")
 include_directories("/usr/local/include")
 
 # cmake -D DEBUG_mode=ON ..
@@ -39,5 +41,5 @@ else()
     add_definitions(-O2 -DNDEBUG)
     set(CMAKE_CXX_FLAGS "-O2 -Wall -std=c++11")
     add_executable(proxy ${PROJECT_SOURCE_DIR}/src/proxy_main.cc)
-    target_link_libraries(proxy proxy_core ${Boost_LIBRARIES} libglog pthread)
+    target_link_libraries(proxy proxy_core ${Boost_LIBRARIES} libglog libcoroutine pthread)
 endif()

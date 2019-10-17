@@ -23,6 +23,7 @@ bool ProxyLog::init_log(const char *name, const std::string &dir, int max_size, 
     ProxyLog::set_log_dir(dir);
     ProxyLog::set_log_max_size(max_size);
     ProxyLog::set_log_full_stop(full_stop);
+    ProxyLog::set_log_buffer();
 
     google::InitGoogleLogging(name);
 

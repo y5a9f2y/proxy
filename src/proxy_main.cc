@@ -1,6 +1,7 @@
 #include <iostream>
 #include "core/config.h"
 #include "core/log.h"
+#include "core/server.h"
 
 int main(int argc, char *argv[]) {
 
@@ -14,7 +15,17 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    proxy::core::ProxyServer server(config);
+
+    if(!server.setup()) {
+        LOG(ERROR) << "setup the proxy server error, quiting";
+        return -1;
+    }
+
     LOG(INFO) << "the config is: \n" << config.to_string();
 
+    server.run();
+
     return 0;
+
 }

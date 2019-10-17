@@ -24,6 +24,10 @@ public:
         fLB::FLAGS_stop_logging_if_full_disk = flag;
     }
 
+    static void set_log_buffer(int level = -1) {
+        fLI::FLAGS_logbuflevel = level;
+    }
+
     static bool init_log(const char *, const std::string &, int, bool);
 
 };
