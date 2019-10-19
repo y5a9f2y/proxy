@@ -5,8 +5,8 @@
 #include <string>
 #include <utility>
 
-#include "config.h"
-#include "socket.h"
+#include "core/config.h"
+#include "core/socket.h"
 
 namespace proxy {
 namespace core {

@@ -1,2 +1,8 @@
-#include "tunnel.h"
-#include "server.h"
+#include "core/tunnel.h"
+#include "core/server.h"
+
+namespace proxy {
+namespace core {
+
+}
+}

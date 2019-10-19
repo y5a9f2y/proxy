@@ -1,9 +1,9 @@
 #include <exception>
 #include <memory>
 
-#include "stm.h"
-#include "server.h"
-#include "tunnel.h"
+#include "core/stm.h"
+#include "core/server.h"
+#include "core/tunnel.h"
 
 #include "glog/logging.h"
 
@@ -26,7 +26,6 @@ void *ProxyStm::startup(void *args) {
         default:
             LOG(INFO) << "unknown mode " << static_cast<int>(p->server->config().mode())
                 << " from " << fd->to_string();
-            delete p->fd;
             break;
     }
 
@@ -36,8 +35,6 @@ void *ProxyStm::startup(void *args) {
 
 
 void *ProxyStm::_startup_encryption_flow(std::shared_ptr<ProxySocket> fd, ProxyServer *server) {
-
-    LOG(INFO) << fd.use_count();
 
     return nullptr;
 

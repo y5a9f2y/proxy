@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "config.h"
+#include "core/config.h"
 
 namespace proxy {
 namespace core {

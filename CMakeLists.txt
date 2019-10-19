@@ -9,6 +9,7 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 file(GLOB_RECURSE PROXY_CORE src/*)
 list(REMOVE_ITEM PROXY_CORE ${PROJECT_SOURCE_DIR}/src/proxy_main.cc)
 
+include_directories(${PROJECT_SOURCE_DIR}/src)
 add_library(proxy_core STATIC ${PROXY_CORE})
 set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost REQUIRED COMPONENTS

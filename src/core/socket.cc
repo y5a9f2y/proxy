@@ -1,7 +1,7 @@
 #include <exception>
 #include <stdexcept>
 
-#include "socket.h"
+#include "core/socket.h"
 
 namespace proxy {
 namespace core {

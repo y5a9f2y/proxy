@@ -10,9 +10,10 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include "server.h"
-#include "stm.h"
-#include "tunnel.h"
+#include "core/server.h"
+#include "core/stm.h"
+#include "core/tunnel.h"
+
 #include "glog/logging.h"
 
 extern "C" {

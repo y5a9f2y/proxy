@@ -2,7 +2,7 @@
 #include <exception>
 
 #include "boost/filesystem.hpp"
-#include "log.h"
+#include "core/log.h"
 
 namespace proxy {
 namespace core {

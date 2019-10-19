@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
-#include "config.h"
-#include "socket.h"
+#include "core/config.h"
+#include "core/socket.h"
 
 namespace proxy {
 namespace core {
@@ -25,6 +25,8 @@ public:
     const ProxyConfig &config() const {
         return _config;
     }
+
+    void add_tunnels(const std::shared_ptr<ProxyTunnel> &);
 
 private:
 
