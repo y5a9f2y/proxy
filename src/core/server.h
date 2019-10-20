@@ -2,6 +2,7 @@
 #define PROXY_CORE_SERVER_H_H_H
 
 #include <memory>
+#include <queue>
 #include <vector>
 
 #include "core/config.h"
@@ -11,6 +12,15 @@ namespace proxy {
 namespace core {
 
 class ProxyTunnel;
+
+
+class ProxyServerTunnelRule {
+
+public:
+    bool operator()(const std::shared_ptr<ProxyTunnel> &, const std::shared_ptr<ProxyTunnel> &);
+
+};
+
 
 class ProxyServer {
 
@@ -26,7 +36,17 @@ public:
         return _config;
     }
 
-    void add_tunnels(const std::shared_ptr<ProxyTunnel> &);
+    void add_tunnel(const std::shared_ptr<ProxyTunnel> &u) {
+        _tunnels.push(u);
+    }
+
+    void remove_tunnel() {
+        _tunnels.pop();
+    }
+
+    std::shared_ptr<ProxyTunnel> get_least_recent_used_tunnel() {
+        return _tunnels.top();
+    }
 
 private:
 
@@ -38,7 +58,8 @@ private:
 
     ProxyConfig _config;
     std::shared_ptr<ProxySocket> _listen_socket;
-    std::vector<std::shared_ptr<ProxyTunnel>> _tunnels;
+    std::priority_queue<std::shared_ptr<ProxyTunnel>,
+        std::vector<std::shared_ptr<ProxyTunnel>>, ProxyServerTunnelRule> _tunnels;
 
 };
 

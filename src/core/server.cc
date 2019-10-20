@@ -23,6 +23,13 @@ extern "C" {
 namespace proxy {
 namespace core {
 
+bool ProxyServerTunnelRule::operator()(const std::shared_ptr<ProxyTunnel> &lhs,
+        const std::shared_ptr<ProxyTunnel> &rhs) {
+
+    return lhs->mtime() > rhs->mtime();
+
+}
+
 bool ProxyServer::setup() {
 
     if(!_daemonize()) {

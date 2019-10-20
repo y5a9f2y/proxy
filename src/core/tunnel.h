@@ -14,6 +14,7 @@ namespace core {
 
 class ProxyServer;
 
+
 class ProxyTunnel {
 
 public:
@@ -29,6 +30,7 @@ public:
         return _mtime;
     }
 
+
 protected:
     std::shared_ptr<ProxySocket> _from;
     std::shared_ptr<ProxySocket> _to;
@@ -37,6 +39,7 @@ protected:
     time_t _mtime;
 
 };
+
 
 class ProxyTcpTunnel : public ProxyTunnel {
 
