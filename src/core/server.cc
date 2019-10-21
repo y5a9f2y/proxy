@@ -23,10 +23,21 @@ extern "C" {
 namespace proxy {
 namespace core {
 
-bool ProxyServerTunnelRule::operator()(const std::shared_ptr<ProxyTunnel> &lhs,
-        const std::shared_ptr<ProxyTunnel> &rhs) {
+bool ProxyServerTunnelRule::operator()(const std::weak_ptr<ProxyTunnel> &lhs,
+        const std::weak_ptr<ProxyTunnel> &rhs) {
 
-    return lhs->mtime() > rhs->mtime();
+    std::shared_ptr<ProxyTunnel> l = lhs.lock();
+    std::shared_ptr<ProxyTunnel> r = rhs.lock();
+
+    if(!l) {
+        return false;
+    }
+
+    if(!r) {
+        return true;
+    }
+
+    return l->mtime() > r->mtime();
 
 }
 

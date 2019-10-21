@@ -17,7 +17,7 @@ class ProxyTunnel;
 class ProxyServerTunnelRule {
 
 public:
-    bool operator()(const std::shared_ptr<ProxyTunnel> &, const std::shared_ptr<ProxyTunnel> &);
+    bool operator()(const std::weak_ptr<ProxyTunnel> &, const std::weak_ptr<ProxyTunnel> &);
 
 };
 
@@ -36,6 +36,10 @@ public:
         return _config;
     }
 
+    bool no_tunnels() const {
+        return _tunnels.empty();
+    }
+
     void add_tunnel(const std::shared_ptr<ProxyTunnel> &u) {
         _tunnels.push(u);
     }
@@ -45,7 +49,7 @@ public:
     }
 
     std::shared_ptr<ProxyTunnel> get_least_recent_used_tunnel() {
-        return _tunnels.top();
+        return _tunnels.top().lock();
     }
 
 private:
@@ -58,8 +62,8 @@ private:
 
     ProxyConfig _config;
     std::shared_ptr<ProxySocket> _listen_socket;
-    std::priority_queue<std::shared_ptr<ProxyTunnel>,
-        std::vector<std::shared_ptr<ProxyTunnel>>, ProxyServerTunnelRule> _tunnels;
+    std::priority_queue<std::weak_ptr<ProxyTunnel>,
+        std::vector<std::weak_ptr<ProxyTunnel>>, ProxyServerTunnelRule> _tunnels;
 
 };
 
