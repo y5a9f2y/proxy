@@ -191,11 +191,11 @@ void ProxyServer::_run_loop() {
 
         LOG(INFO) << "recieve a connection from " << fd->to_string();
 
-        ProxyStmFlowArgs args = {fd, this};
+        ProxyStmFlowArgs *args = new ProxyStmFlowArgs{fd, this};
 
         co_thread_t *c = nullptr;
-        if(!(c = coroutine_create(ProxyStm::startup, reinterpret_cast<void *>(&args)))) {
-            LOG(ERROR) << "create a new coroutine for " << args.fd->to_string() << " error: "
+        if(!(c = coroutine_create(ProxyStm::startup, reinterpret_cast<void *>(args)))) {
+            LOG(ERROR) << "create a new coroutine for " << args->fd->to_string() << " error: "
                 << strerror(errno);
             continue;
         }

@@ -6,13 +6,11 @@
 namespace proxy {
 namespace core {
 
-const size_t PROXY_BUFFER_DEFAULT_SIZE = 4096;
-
 class ProxyBuffer {
 
 public:
 
-    ProxyBuffer(): ProxyBuffer(PROXY_BUFFER_DEFAULT_SIZE) {}
+    ProxyBuffer(): ProxyBuffer(ProxyBuffer::PROXY_BUFFER_DEFAULT_SIZE) {}
     ProxyBuffer(size_t sz) : start(0), cur(0), size(sz), buffer(new char[sz]) {}
     virtual ~ProxyBuffer() {
         delete []buffer;
@@ -30,10 +28,14 @@ public:
         start = cur = 0;
     }
 
+    char *get_charp_at(size_t);
+
     size_t start;
     size_t cur;
     size_t size;
     char *buffer;
+
+    static size_t PROXY_BUFFER_DEFAULT_SIZE;
 
 };
 

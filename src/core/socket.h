@@ -1,6 +1,7 @@
 #ifndef PROXY_CORE_SOCKET_H_H_H
 #define PROXY_CORE_SOCKET_H_H_H
 
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -13,6 +14,8 @@
 extern "C" {
 #include "coroutine/coroutine.h"
 }
+
+#include "core/buffer.h"
 
 namespace proxy {
 namespace core {
@@ -53,6 +56,8 @@ public:
     int bind(const struct sockaddr *, socklen_t);
     int listen(int);
     ProxySocket *accept();
+
+    ssize_t read_eq(size_t, std::shared_ptr<ProxyBuffer> &);
 
 private:
     co_socket_t *_fd;

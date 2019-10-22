@@ -15,6 +15,10 @@ public:
 
     static proxy::core::ProxyStmEvent on_establish(std::shared_ptr<proxy::core::ProxyTunnel> &);
 
+
+
+    static const char VERSION;
+
 };
 
 }

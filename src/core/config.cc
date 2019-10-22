@@ -7,6 +7,9 @@
 namespace proxy {
 namespace core {
 
+const size_t ProxyConfig::_USERNAME_MAX_LENGTH = 64;
+const size_t ProxyConfig::_PASSWORD_MAX_LENGTH = 64;
+
 bool ProxyConfig::parse() {
 
     boost::property_tree::ptree pt;
@@ -60,6 +63,21 @@ bool ProxyConfig::_extract_and_validate(const boost::property_tree::ptree &pt) {
         _log_dir = pt.get<std::string>("log.dir");
         _log_max_size = pt.get<int>("log.max_size", 512);
         _log_full_stop = pt.get<int>("log.full_stop", 0) ? true : false;
+
+        _username = pt.get<std::string>("auth.username");
+        _password = pt.get<std::string>("auth.password");
+
+        if(_username.size() > ProxyConfig::_USERNAME_MAX_LENGTH) {
+            std::cerr << "the length of auth.username greater than "
+                << ProxyConfig::_USERNAME_MAX_LENGTH << std::endl;
+            return false;
+        }
+
+        if(_password.size() > ProxyConfig::_PASSWORD_MAX_LENGTH) {
+            std::cerr << "the length of auth.password greater than"
+                << ProxyConfig::_PASSWORD_MAX_LENGTH << std::endl;
+            return false;
+        }
 
     } catch(const boost::property_tree::ptree_bad_path &bpex) {
 

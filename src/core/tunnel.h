@@ -7,6 +7,7 @@
 
 #include <stdlib.h>
 #include <time.h>
+#include <sys/types.h>
 
 #include "core/buffer.h"
 #include "core/socket.h"
@@ -39,30 +40,6 @@ public:
         return _mtime;
     }
 
-    bool buffer_empty() const {
-        return _buffer.empty();
-    }
-
-    std::shared_ptr<ProxyBuffer> buffer_back() {
-        return _buffer.back();
-    }
-
-    std::shared_ptr<ProxyBuffer> buffer_front() {
-        return _buffer.front();
-    }
-
-    void add_buffer(const std::shared_ptr<ProxyBuffer> &buffer) {
-        _buffer.push_back(buffer);
-    }
-
-    void add_buffer(std::shared_ptr<ProxyBuffer> &&buffer) {
-        _buffer.push_back(std::move(buffer));
-    }
-
-    void remove_buffer() {
-        _buffer.pop_front();
-    }
-
     ProxyStmState state() const {
         return _state;
     }
@@ -71,6 +48,19 @@ public:
         _state = s;
     }
 
+    const std::shared_ptr<ProxySocket> &from() const {
+        return _from;
+    }
+
+    const std::shared_ptr<ProxySocket> &to() const {
+        return _to;
+    }
+
+    const ProxyServer *server() const {
+        return _server;
+    }
+
+    ssize_t read_from_eq(size_t, std::shared_ptr<ProxyBuffer> &);
 
 
 protected:
@@ -79,7 +69,6 @@ protected:
     ProxyServer *_server;
     ProxyStmState _state;
     time_t _mtime;
-    std::deque<std::shared_ptr<ProxyBuffer>> _buffer;
 
 };
 

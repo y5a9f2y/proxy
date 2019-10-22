@@ -93,6 +93,12 @@ private:
     int _log_max_size;
     bool _log_full_stop;
 
+    // the config of the authentication
+    std::string _username;
+    std::string _password;
+
+    static const size_t _USERNAME_MAX_LENGTH;
+    static const size_t _PASSWORD_MAX_LENGTH;
 
 };
 

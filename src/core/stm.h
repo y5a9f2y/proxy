@@ -18,7 +18,9 @@ enum class ProxyStmState {
 
     PROXY_STM_ENCRYPTION_READY,
     PROXY_STM_ENCRYPTION_ESTABLISHING,
-    PROXY_STM_ENCRYPTION_NEGOTIATING,
+    PROXY_STM_ENCRYPTION_NOACCEPT_SENDING,
+    PROXY_STM_ENCRYPTION_CONNECTING_REMOTE,
+    PROXY_STM_ENCRYPTION_USERPASS_NEGOTIATING,
     PROXY_STM_ENCRYPTION_ERROR,
 
     PROXY_STM_TRANSMISSION_READY,
@@ -29,7 +31,10 @@ enum class ProxyStmState {
 enum class ProxyStmEvent {
     PROXY_STM_EVENT_ESTABLISH,
     PROXY_STM_EVENT_ESTABLISH_OK,
-    PROXY_STM_EVENT_ESTABLISH_FAIL
+    PROXY_STM_EVENT_ESTABLISH_FAIL,
+    PROXY_STM_EVENT_ESTABLISH_NOACCEPT,
+    PROXY_STM_EVENT_CONNECT_OK,
+    PROXY_STM_EVENT_CONNECT_FAIL
 };
 
 
@@ -55,11 +60,11 @@ public:
     virtual ~ProxyStm() =delete;
 
 private:
-    static void *_encryption_flow_startup(std::shared_ptr<ProxySocket>, ProxyServer *);
+    static void _encryption_flow_startup(std::shared_ptr<ProxySocket>, ProxyServer *);
     static void _encryption_flow_establish(std::shared_ptr<ProxyTunnel> &);
 
-    static void *_transmission_flow_startup(std::shared_ptr<ProxySocket>, ProxyServer *);
-    static void *_decryption_flow_startup(std::shared_ptr<ProxySocket>, ProxyServer *);
+    static void _transmission_flow_startup(std::shared_ptr<ProxySocket>, ProxyServer *);
+    static void _decryption_flow_startup(std::shared_ptr<ProxySocket>, ProxyServer *);
 
 };
 
