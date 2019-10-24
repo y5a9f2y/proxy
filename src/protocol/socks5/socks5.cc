@@ -2,13 +2,13 @@
 
 #include "glog/logging.h"
 
-namespace proxy {
-namespace protocol {
-namespace socks5 {
-
 using proxy::core::ProxyStmEvent;
 using proxy::core::ProxyTunnel;
 using proxy::core::ProxyBuffer;
+
+namespace proxy {
+namespace protocol {
+namespace socks5 {
 
 const char ProxyProtoSocks5::VERSION = 0x05;
 
