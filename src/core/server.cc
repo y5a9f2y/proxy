@@ -67,9 +67,18 @@ bool ProxyServer::teardown() {
 
 void ProxyServer::run() {
 
+    if(_config.mode() == ProxyServerType::Decryption) {
+        _rsa_keypair = proxy::crypto::ProxyCryptoRsa::generate_key_pair();
+        if(!_rsa_keypair) {
+            LOG(ERROR) << "generate the rsa key pair error";
+            return;
+        }
+    }
+
     if(!_setup_listen_socket()) {
         return;
     }
+
     _run_loop();
 
 }

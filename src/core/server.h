@@ -7,6 +7,7 @@
 
 #include "core/config.h"
 #include "core/socket.h"
+#include "crypto/rsa.h"
 
 namespace proxy {
 namespace core {
@@ -64,6 +65,7 @@ private:
     std::shared_ptr<ProxySocket> _listen_socket;
     std::priority_queue<std::weak_ptr<ProxyTunnel>,
         std::vector<std::weak_ptr<ProxyTunnel>>, ProxyServerTunnelRule> _tunnels;
+    std::shared_ptr<proxy::crypto::ProxyCryptoRsaKeypair> _rsa_keypair;
 
 };
 

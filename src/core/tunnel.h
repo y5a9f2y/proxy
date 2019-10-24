@@ -56,6 +56,22 @@ public:
         return _to;
     }
 
+    std::shared_ptr<ProxySocket> from() {
+        return _from;
+    }
+
+    std::shared_ptr<ProxySocket> to() {
+        return _to;
+    }
+
+    void from(const std::shared_ptr<ProxySocket> &f) {
+        _from = f;
+    }
+
+    void to(const std::shared_ptr<ProxySocket> &t) {
+        _to = t;
+    }
+
     const ProxyServer *server() const {
         return _server;
     }

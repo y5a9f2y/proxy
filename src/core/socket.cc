@@ -47,6 +47,10 @@ ProxySocket *ProxySocket::accept() {
 
 }
 
+int ProxySocket::connect() {
+    return 0;
+}
+
 ssize_t ProxySocket::read_eq(size_t n, std::shared_ptr<ProxyBuffer> &pb) {
 
     size_t nbytes = n;

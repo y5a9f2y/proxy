@@ -56,6 +56,7 @@ public:
     int bind(const struct sockaddr *, socklen_t);
     int listen(int);
     ProxySocket *accept();
+    int connect();
 
     ssize_t read_eq(size_t, std::shared_ptr<ProxyBuffer> &);
 

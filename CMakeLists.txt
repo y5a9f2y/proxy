@@ -50,5 +50,6 @@ else()
     add_definitions(-O2 -DNDEBUG)
     set(CMAKE_CXX_FLAGS "-O2 -Wall -std=c++11")
     add_executable(proxy ${PROJECT_SOURCE_DIR}/src/proxy_main.cc)
-    target_link_libraries(proxy proxy_core ${Boost_LIBRARIES} libglog libcoroutine pthread dl)
+    target_link_libraries(proxy proxy_core ${Boost_LIBRARIES} libglog libcoroutine 
+       libssl libcrypto pthread dl)
 endif()
