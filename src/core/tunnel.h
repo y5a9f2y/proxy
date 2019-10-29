@@ -92,6 +92,30 @@ public:
         _rsa_key = std::move(key);
     }
 
+    const std::string &aes_iv() const {
+        return _aes_iv;
+    }
+
+    void aes_iv(const std::string &iv) {
+        _aes_iv = iv;
+    }
+
+    void aes_iv(std::string &&iv) {
+        _aes_iv = std::move(iv);
+    }
+
+    const std::string &aes_key() const {
+        return _aes_key;
+    }
+
+    void aes_key(const std::string &key) {
+        _aes_key = key;
+    }
+
+    void aes_key(std::string &&key) {
+        _aes_key = std::move(key);
+    }
+
     std::string to_string() const {
         return _from->to_string() + "->" + _to->to_string();
     }
@@ -113,6 +137,8 @@ protected:
     ProxyStmState _state;
     time_t _mtime;
     std::string _rsa_key;
+    std::string _aes_iv;
+    std::string _aes_key;
 
 };
 

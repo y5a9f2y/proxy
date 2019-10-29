@@ -6,6 +6,8 @@
 #include "protocol/intimate/crypto.h"
 #include "core/buffer.h"
 #include "core/server.h"
+#include "crypto/rsa.h"
+#include "crypto/aes.h"
 #include "glog/logging.h"
 
 using proxy::core::ProxyStmEvent;
@@ -169,6 +171,136 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_rsa_pubkey_response(
     return ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND;
 
 }
+
+ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_send(
+    std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    /*
+    **  C1: the key, which is 32 bytes 
+    **  C2: the iv, which is 16bytes
+    **   +------+------+
+    **   |  C1  |  C2  |
+    **   +-------------+
+    **   |  key |  iv  |
+    **   +------+------+
+    **  the data sent is encrypt by the rsa public key, the data is
+    **   +----------+-----------+
+    **   |  LENGTH  |  CONTENT  |
+    **   +----------------------+
+    **   |  4bytes  | enc-data  |
+    **   +----------+-----------+
+    */
+
+    std::shared_ptr<ProxyBuffer> from;
+    std::shared_ptr<ProxyBuffer> to;
+
+    try {
+        from = std::make_shared<ProxyBuffer>(4096);
+        to = std::make_shared<ProxyBuffer>(4096);
+    } catch(const std::exception &ex) {
+        LOG(ERROR) << tunnel->to_string() << ": create the buffer for aes negotiating error: " 
+            << ex.what();
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    std::string key = tunnel->aes_key();
+    std::string iv = tunnel->aes_iv();
+    for(size_t i = 0; i < key.size(); ++i) {
+        from->buffer[from->cur++] = key[i];
+    }
+    for(size_t i = 0; i < iv.size(); ++i) {
+        from->buffer[from->cur++] = iv[i];
+    }
+
+    to->cur += 4;
+    if(!proxy::crypto::ProxyCryptoRsa::rsa_encrypt(from, to, tunnel->rsa_key())) {
+        LOG(ERROR) << tunnel->to_string() << ": encrypt the aes key and iv error";
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    uint32_t *p = reinterpret_cast<uint32_t *>(to->get_charp_at(0));
+    *p = htonl(static_cast<uint32_t>(to->cur - 4));
+
+
+    ssize_t nwrite = tunnel->write_to_eq(to->cur - to->start, to);
+    if(nwrite < 0 || static_cast<size_t>(nwrite) != to->cur - to->start) {
+        LOG(ERROR) << tunnel->to_string() << ": write the aes key and iv to error: "
+            << strerror(errno);
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    return ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND;
+
+}
+
+ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_recieve(
+    std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    /*
+    **  C1: the key, which is 32 bytes 
+    **  C2: the iv, which is 16bytes
+    **   +------+------+
+    **   |  C1  |  C2  |
+    **   +-------------+
+    **   |  key |  iv  |
+    **   +------+------+
+    **  the data sent is encrypt by the rsa public key, the data is
+    **   +----------+-----------+
+    **   |  LENGTH  |  CONTENT  |
+    **   +----------------------+
+    **   |  4bytes  | enc-data  |
+    **   +----------+-----------+
+    */
+
+    std::shared_ptr<ProxyBuffer> from;
+    std::shared_ptr<ProxyBuffer> to;
+
+    try {
+        from = std::make_shared<ProxyBuffer>(4096);
+        to = std::make_shared<ProxyBuffer>(4096);
+    } catch(const std::exception &ex) {
+        LOG(ERROR) << "create the buffer for aes key and iv recieve from"
+            << tunnel->from()->to_string() << " error: " << ex.what();
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    if(4 != tunnel->read_from_eq(4, from)) {
+        LOG(ERROR) << "read the length of the encrypt data from " << tunnel->from()->to_string()
+            << " error: " << strerror(errno);
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    uint32_t p = ntohl(*reinterpret_cast<uint32_t *>(from->get_charp_at(0)));
+    ssize_t nread = tunnel->read_from_eq(static_cast<size_t>(p), from);
+    if(nread < 0 || static_cast<uint32_t>(nread) != p) {
+        LOG(ERROR) << "read the encrypt data from " << tunnel->from()->to_string()
+            << " error: " << strerror(errno);
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    std::string key = tunnel->server()->rsa_keypair()->pri();
+    from->start += 4;
+    if(!proxy::crypto::ProxyCryptoRsa::rsa_decrypt(from, to, key)) {
+        LOG(ERROR) << "decrypt the aes key and iv from " << tunnel->from()->to_string()
+            << " error";
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    if(to->cur - to->start !=
+        proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE + proxy::crypto::ProxyCryptoAes::AES_IV_SIZE) {
+        LOG(ERROR) << "check the length of aes key and iv from " << tunnel->from()->to_string()
+            << " error";
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
+    tunnel->aes_key(std::string(to->get_charp_at(0), proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE));
+    tunnel->aes_iv(std::string(to->get_charp_at(proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE),
+        proxy::crypto::ProxyCryptoAes::AES_IV_SIZE));
+
+    return ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECIEVE;
+
+}
+
 
 }
 }

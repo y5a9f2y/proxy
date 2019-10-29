@@ -8,6 +8,7 @@
 #include "core/server.h"
 #include "core/tunnel.h"
 #include "core/socket.h"
+#include "crypto/aes.h"
 #include "protocol/socks5/socks5.h"
 #include "protocol/intimate/crypto.h"
 
@@ -97,6 +98,7 @@ void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             _encryption_flow_aes_negotiate(tunnel);
             break;
         case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
+        default:
             return;
     }
 
@@ -105,6 +107,49 @@ void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
 }
 
 void ProxyStm::_encryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    std::shared_ptr<proxy::crypto::ProxyCryptoAesKeyAndIv> key_iv =
+        proxy::crypto::ProxyCryptoAes::generate_key_and_iv();
+
+    tunnel->aes_key(key_iv->key());
+    tunnel->aes_iv(key_iv->iv());
+
+    if(tunnel->aes_key().size() != proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE) {
+        LOG(ERROR) << tunnel->to_string() << ": unexpect aes key size "
+            << tunnel->aes_key().size();
+        return;
+    }
+
+    if(tunnel->aes_iv().size() != proxy::crypto::ProxyCryptoAes::AES_IV_SIZE) {
+        LOG(ERROR) << tunnel->to_string() << ": unexpect aes iv size "
+            << tunnel->aes_iv().size();
+        return;
+    }
+
+    ProxyStmEvent ret =
+        proxy::protocol::intimate::ProxyProtoCryptoNegotiate::on_aes_key_iv_send(tunnel);
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND:
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL:
+            ProxyStmHelper::switch_state(tunnel, ret);
+            break;
+        default:
+            LOG(ERROR) << tunnel->to_string() << ": the aes send method return unexpected "
+                << ProxyStmHelper::event2string(ret);
+            break;
+    }
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND:
+            // TODO
+            break;
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL:
+        default:
+            return;
+    }
+
+    return;
 
 }
 
@@ -148,6 +193,7 @@ void ProxyStm::_decryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             _decryption_flow_aes_negotiate(tunnel);
             break;
         case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
+        default:
             return;
     }
 
@@ -157,6 +203,30 @@ void ProxyStm::_decryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
 
 void ProxyStm::_decryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
+    ProxyStmEvent ret =
+        proxy::protocol::intimate::ProxyProtoCryptoNegotiate::on_aes_key_iv_recieve(tunnel);
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECIEVE:
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL:
+            ProxyStmHelper::switch_state(tunnel, ret);
+            break;
+        default:
+            LOG(ERROR) << tunnel->to_string() << ": the aes recieve method return unexpected "
+                << ProxyStmHelper::event2string(ret);
+            break;
+    }
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECIEVE:
+            // TODO
+            break;
+        case ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL:
+        default:
+            return;
+    }
+
+    return;
 }
 
 const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
