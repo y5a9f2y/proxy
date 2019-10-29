@@ -76,7 +76,34 @@ public:
         return _server;
     }
 
+    ProxyServer *server() {
+        return _server;
+    }
+
+    const std::string &rsa_key() const {
+        return _rsa_key;
+    }
+
+    void rsa_key(const std::string &key) {
+        _rsa_key = key;
+    }
+
+    void rsa_key(std::string &&key) {
+        _rsa_key = std::move(key);
+    }
+
+    std::string to_string() const {
+        return _from->to_string() + "->" + _to->to_string();
+    }
+
+    std::string to_reverse_string() const {
+        return _to->to_string() + "->" + _from->to_string();
+    }
+
     ssize_t read_from_eq(size_t, std::shared_ptr<ProxyBuffer> &);
+    ssize_t write_from_eq(size_t, std::shared_ptr<ProxyBuffer> &);
+    ssize_t read_to_eq(size_t, std::shared_ptr<ProxyBuffer> &);
+    ssize_t write_to_eq(size_t, std::shared_ptr<ProxyBuffer> &);
 
 
 protected:
@@ -85,6 +112,7 @@ protected:
     ProxyServer *_server;
     ProxyStmState _state;
     time_t _mtime;
+    std::string _rsa_key;
 
 };
 

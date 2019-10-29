@@ -53,6 +53,14 @@ public:
         return _tunnels.top().lock();
     }
 
+    std::shared_ptr<proxy::crypto::ProxyCryptoRsaKeypair> rsa_keypair() {
+        return _rsa_keypair;
+    }
+
+    const std::shared_ptr<proxy::crypto::ProxyCryptoRsaKeypair> rsa_keypair() const {
+        return _rsa_keypair;
+    }
+
 private:
 
     bool _daemonize();

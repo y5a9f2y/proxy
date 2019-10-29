@@ -47,8 +47,23 @@ ProxySocket *ProxySocket::accept() {
 
 }
 
-int ProxySocket::connect() {
-    return 0;
+void ProxySocket::connect() {
+
+    struct sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
+ 
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(_port);
+    if(!inet_aton(_host.c_str(), &addr.sin_addr)) {
+        throw std::runtime_error("convert host of " + to_string() + "to struct in_addr error");
+    }
+
+    if(co_connect(_fd, reinterpret_cast<const struct sockaddr *>(&addr), addrlen) < 0) {
+        throw std::runtime_error("connect" + to_string() + "error" + strerror(errno));
+    }
+
+    return;
+
 }
 
 ssize_t ProxySocket::read_eq(size_t n, std::shared_ptr<ProxyBuffer> &pb) {
@@ -70,5 +85,23 @@ ssize_t ProxySocket::read_eq(size_t n, std::shared_ptr<ProxyBuffer> &pb) {
 
 }
 
+ssize_t ProxySocket::write_eq(size_t n, std::shared_ptr<ProxyBuffer> &pb) {
+
+    size_t nbytes = n;
+
+    while(n) {
+        ssize_t nwrite = co_write(_fd, pb->buffer + pb->start, n);
+        if(nwrite < 0) {
+            return -1;
+        }
+        pb->start += nwrite;
+        n -= nwrite;
+    }
+
+    return nbytes;
+
 }
+
+}
+
 }

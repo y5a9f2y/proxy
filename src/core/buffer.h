@@ -28,6 +28,10 @@ public:
         start = cur = 0;
     }
 
+    void clear() {
+        start = cur = 0;
+    }
+
     char *get_charp_at(size_t);
 
     size_t start;

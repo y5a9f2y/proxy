@@ -70,17 +70,41 @@ void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
         return;
     }
 
+    try {
+        tunnel->to()->connect();
+    } catch(const std::exception &ex) {
+        LOG(ERROR) << ex.what();
+        return;
+    }
+
     ProxyStmEvent ret =
         proxy::protocol::intimate::ProxyProtoCryptoNegotiate::on_rsa_pubkey_request(tunnel);
 
+
     switch(ret) {
         case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECIEVE:
-            break;
         case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
+            ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            break;
+            LOG(ERROR) << tunnel->to_string() << ": the rsa public key request return unexpected"
+                << ProxyStmHelper::event2string(ret);
+            return;
     }
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECIEVE:
+            _encryption_flow_aes_negotiate(tunnel);
+            break;
+        case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
+            return;
+    }
+
+    return;
+
+}
+
+void ProxyStm::_encryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
 }
 
@@ -109,13 +133,29 @@ void ProxyStm::_decryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
         proxy::protocol::intimate::ProxyProtoCryptoNegotiate::on_rsa_pubkey_response(tunnel);
 
     switch(ret) {
-        case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECIEVE:
-            break;
+        case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND:
         case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
+            ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            break;
+            LOG(ERROR) << "the rsa public key response to " << tunnel->from()->to_string()
+                << " return unexpected " << ProxyStmHelper::event2string(ret);
+            return;
     }
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND:
+            _decryption_flow_aes_negotiate(tunnel);
+            break;
+        case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
+            return;
+    }
+
+    return;
+
+}
+
+void ProxyStm::_decryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
 }
 
@@ -125,25 +165,48 @@ const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
         ProxyStmEvent::PROXY_STM_EVENT_ESTABLISH,
         ProxyStmState::PROXY_STM_ENCRYPTION_RSA_NEGOTIATING},
 
+    {ProxyStmState::PROXY_STM_ENCRYPTION_RSA_NEGOTIATING,
+        ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECIEVE,
+        ProxyStmState::PROXY_STM_ENCRYPTION_AES_NEGOTIATING},
+
+    {ProxyStmState::PROXY_STM_ENCRYPTION_RSA_NEGOTIATING,
+        ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL,
+        ProxyStmState::PROXY_STM_ENCRYPTION_FAIL},
+
     {ProxyStmState::PROXY_STM_DECRYPTION_READY,
         ProxyStmEvent::PROXY_STM_EVENT_ESTABLISH,
-        ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING}
+        ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING,
+        ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND,
+        ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING,
+        ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL,
+        ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
 
 };
 
 const std::unordered_map<ProxyStmState, std::string> ProxyStmHelper::ProxyStmStateString = {
     {ProxyStmState::PROXY_STM_ENCRYPTION_READY, "PROXY_STM_ENCRYPTION_READY"},
     {ProxyStmState::PROXY_STM_ENCRYPTION_RSA_NEGOTIATING, "PROXY_STM_ENCRYPTION_RSA_NEGOTIATING"},
+    {ProxyStmState::PROXY_STM_ENCRYPTION_AES_NEGOTIATING, "PROXY_STM_ENCRYPTION_AES_NEGOTIATING"},
+    {ProxyStmState::PROXY_STM_ENCRYPTION_FAIL, "PROXY_STM_ENCRYPTION_FAIL"},
     {ProxyStmState::PROXY_STM_TRANSMISSION_READY, "PROXY_STM_TRANSMISSION_READY"},
     {ProxyStmState::PROXY_STM_DECRYPTION_READY, "PROXY_STM_DECRYPTION_READY"},
     {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING, "PROXY_STM_DECRYPTION_RSA_NEGOTIATING"},
+    {ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING, "PROXY_STM_DECRYPTION_AES_NEGOTIATING"},
+    {ProxyStmState::PROXY_STM_DECRYPTION_FAIL, "PROXY_STM_DECRYPTION_FAIL"}
 };
 
 const std::unordered_map<ProxyStmEvent, std::string> ProxyStmHelper::ProxyStmEventString = {
     {ProxyStmEvent::PROXY_STM_EVENT_ESTABLISH, "PROXY_STM_EVENT_ESTABLISH"},
     {ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND, "PROXY_STM_EVENT_RSA_PUBKEY_SEND"},
     {ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECIEVE, "PROXY_STM_EVENT_RSA_PUBKEY_RECIEVE"},
-    {ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL, "PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL"}
+    {ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL, "PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL"},
+    {ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND, "PROXY_STM_EVENT_AES_KEY_SEND"},
+    {ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECIEVE, "PROXY_STM_EVENT_AES_KEY_RECIEVE"},
+    {ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL, "PROXY_STM_EVENT_AES_NEGOTIATING_FAIL"}
 };
 
 std::string ProxyStmHelper::state2string(ProxyStmState state) {
@@ -167,7 +230,6 @@ std::string ProxyStmHelper::event2string(ProxyStmEvent event) {
 }
 
 bool ProxyStmHelper::switch_state(std::shared_ptr<ProxyTunnel> &tunnel, ProxyStmEvent ev) {
-
 
     for(size_t i = 0; i < sizeof(ProxyStmHelper::stm_table) /
         sizeof(ProxyStmHelper::stm_table[0]); ++i) {
