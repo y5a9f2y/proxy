@@ -18,7 +18,7 @@ namespace intimate {
 bool ProxyProtoAck::on_ack_send(std::shared_ptr<ProxyTunnel> &tunnel, ProxyProtoAckDirect d) {
 
     /*                                                                                                 
-	** send 1 ack byte
+    ** send 1 ack byte
     **   +------+                                                                               
     **   | flag |                                                                               
     **   +-------                                                                               
@@ -61,7 +61,7 @@ bool ProxyProtoAck::on_ack_send(std::shared_ptr<ProxyTunnel> &tunnel, ProxyProto
 bool ProxyProtoAck::on_ack_receive(std::shared_ptr<ProxyTunnel> &tunnel, ProxyProtoAckDirect d) {
 
     /*                                                                                                 
-	** receive 1 ack byte
+    ** receive 1 ack byte
     **   +------+                                                                               
     **   | flag |                                                                               
     **   +-------                                                                               
