@@ -20,7 +20,7 @@ public:
 
     static proxy::core::ProxyStmEvent on_aes_key_iv_send(
         std::shared_ptr<proxy::core::ProxyTunnel> &);
-    static proxy::core::ProxyStmEvent on_aes_key_iv_recieve(
+    static proxy::core::ProxyStmEvent on_aes_key_iv_receive(
         std::shared_ptr<proxy::core::ProxyTunnel> &);
 
 };

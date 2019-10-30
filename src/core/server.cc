@@ -198,7 +198,7 @@ void ProxyServer::_run_loop() {
             continue;
         }
 
-        LOG(INFO) << "recieve a connection from " << fd->to_string();
+        LOG(INFO) << "receive a connection from " << fd->to_string();
 
         ProxyStmFlowArgs *args = new ProxyStmFlowArgs{fd, this};
 

@@ -46,6 +46,10 @@ std::shared_ptr<ProxyCryptoRsaKeypair> ProxyCryptoRsa::generate_key_pair() {
     std::shared_ptr<char> private_key(new char[private_key_len + 1], [](char *p){delete []p;});
     std::shared_ptr<char> public_key(new char[public_key_len + 1], [](char *p){delete []p;});
 
+    LOG(INFO) << "private_key_len: " << private_key_len;
+    LOG(INFO) << "public_key_len: " << public_key_len;
+
+
     if(private_key_len != BIO_read(pri.get(), reinterpret_cast<void *>(private_key.get()),
         private_key_len)) {
         LOG(ERROR) << "read the private key from bio error";
@@ -58,8 +62,14 @@ std::shared_ptr<ProxyCryptoRsaKeypair> ProxyCryptoRsa::generate_key_pair() {
         return nullptr;
     }
 
-    return std::make_shared<ProxyCryptoRsaKeypair>(std::string(public_key.get(), public_key_len),
-        std::string(private_key.get(), private_key_len));
+    private_key.get()[private_key_len] = '\0';
+    public_key.get()[public_key_len] = '\0';
+
+    std::string pubk = public_key.get();
+    std::string prik = private_key.get();
+
+    return std::make_shared<ProxyCryptoRsaKeypair>(std::string(public_key.get()),
+        std::string(private_key.get()));
 
 }
 
@@ -73,18 +83,12 @@ bool ProxyCryptoRsa::rsa_encrypt(std::shared_ptr<ProxyBuffer> &from,
         return false;
     }
 
-    std::shared_ptr<RSA> rsa(RSA_new(), [](RSA *r){RSA_free(r);});
-    if(!rsa) {
-        LOG(ERROR) << "allocate the rsa structure error";
-        return false;
-    }
-
-    RSA *tmp = rsa.get();
-    rsa.reset(PEM_read_bio_RSAPublicKey(bio.get(), &tmp, NULL, NULL));
-    if(!rsa) {
+    RSA *tmp = NULL;
+    if(!PEM_read_bio_RSAPublicKey(bio.get(), &tmp, NULL, NULL)) {
         LOG(ERROR) << "read the public key in pem format from bio to rsa structure error";
         return false;
     }
+    std::shared_ptr<RSA> rsa(tmp, [](RSA *r){RSA_free(r);});
 
     int rsa_size = RSA_size(rsa.get());
     if(static_cast<size_t>(rsa_size) >= to->size - to->cur) {
@@ -117,18 +121,12 @@ bool ProxyCryptoRsa::rsa_decrypt(std::shared_ptr<ProxyBuffer> &from,
         return false;
     }
 
-    std::shared_ptr<RSA> rsa(RSA_new(), [](RSA *r){RSA_free(r);});
-    if(!rsa) {
-        LOG(ERROR) << "allocate the rsa structure error";
-        return false;
-    }
-
-    RSA *tmp = rsa.get();
-    rsa.reset(PEM_read_bio_RSAPrivateKey(bio.get(), &tmp, NULL, NULL));
-    if(!rsa) {
+    RSA *tmp = NULL;
+    if(!PEM_read_bio_RSAPrivateKey(bio.get(), &tmp, NULL, NULL)) {
         LOG(ERROR) << "read the private key in pem format from bio to rsa structure error";
         return false;
     }
+    std::shared_ptr<RSA> rsa(tmp, [](RSA *r){RSA_free(r);});
 
     int rsa_size = RSA_size(rsa.get());
     if(static_cast<size_t>(rsa_size) >= to->size - to->cur) {

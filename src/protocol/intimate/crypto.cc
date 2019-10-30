@@ -91,7 +91,7 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_rsa_pubkey_request(
 
     tunnel->rsa_key(std::string(buf->get_charp_at(5), key_len));
 
-    return ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECIEVE;
+    return ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECEIVE;
 
 }
 
@@ -127,14 +127,14 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_rsa_pubkey_response(
     char ty = *buf->get_charp_at(0);
     if(ty != 0xf) {
         LOG(ERROR) << "the request type of rsa request need to be 0xf, but " << ty
-            << "recieved from " << tunnel->from()->to_string();
+            << "received from " << tunnel->from()->to_string();
         return ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL;
     }
 
     char bits = *buf->get_charp_at(1);
     if(bits != 0xa) {
         LOG(ERROR) << "the exponent of the rsa bit length need to be 0xa, but " << bits
-            << "recieved from" << tunnel->from()->to_string();
+            << "received from" << tunnel->from()->to_string();
         return ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL;
     }
 
@@ -161,8 +161,9 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_rsa_pubkey_response(
     buf->cur = 5 + key.size();
     buf->cur = (buf->cur < buf->size) ? buf->cur : buf->size;
 
-    ssize_t nwrite = tunnel->write_from_eq(buf->cur - buf->start, buf);
-    if(nwrite < 0 || static_cast<size_t>(nwrite) != buf->cur - buf->start) {
+    size_t towrite = buf->cur - buf->start;
+    ssize_t nwrite = tunnel->write_from_eq(towrite, buf);
+    if(nwrite < 0 || static_cast<size_t>(nwrite) != towrite) {
         LOG(ERROR) << "write the rsa public key to " << tunnel->from()->to_string() << " error: "
             << strerror(errno);
         return ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL;
@@ -222,8 +223,9 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_send(
     *p = htonl(static_cast<uint32_t>(to->cur - 4));
 
 
-    ssize_t nwrite = tunnel->write_to_eq(to->cur - to->start, to);
-    if(nwrite < 0 || static_cast<size_t>(nwrite) != to->cur - to->start) {
+    size_t towrite = to->cur - to->start;
+    ssize_t nwrite = tunnel->write_to_eq(towrite, to);
+    if(nwrite < 0 || static_cast<size_t>(nwrite) != towrite) {
         LOG(ERROR) << tunnel->to_string() << ": write the aes key and iv to error: "
             << strerror(errno);
         return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
@@ -233,7 +235,7 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_send(
 
 }
 
-ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_recieve(
+ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_receive(
     std::shared_ptr<ProxyTunnel> &tunnel) {
 
     /*
@@ -259,7 +261,7 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_recieve(
         from = std::make_shared<ProxyBuffer>(4096);
         to = std::make_shared<ProxyBuffer>(4096);
     } catch(const std::exception &ex) {
-        LOG(ERROR) << "create the buffer for aes key and iv recieve from"
+        LOG(ERROR) << "create the buffer for aes key and iv receive from"
             << tunnel->from()->to_string() << " error: " << ex.what();
         return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
     }
@@ -280,6 +282,7 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_recieve(
 
     std::string key = tunnel->server()->rsa_keypair()->pri();
     from->start += 4;
+
     if(!proxy::crypto::ProxyCryptoRsa::rsa_decrypt(from, to, key)) {
         LOG(ERROR) << "decrypt the aes key and iv from " << tunnel->from()->to_string()
             << " error";
@@ -297,9 +300,10 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_recieve(
     tunnel->aes_iv(std::string(to->get_charp_at(proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE),
         proxy::crypto::ProxyCryptoAes::AES_IV_SIZE));
 
-    return ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECIEVE;
+    return ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE;
 
 }
+
 
 
 }
