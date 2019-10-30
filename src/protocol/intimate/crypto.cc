@@ -179,7 +179,7 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_send(
 
     /*
     **  C1: the key, which is 32 bytes 
-    **  C2: the iv, which is 16bytes
+    **  C2: the iv, which is 16 bytes
     **   +------+------+
     **   |  C1  |  C2  |
     **   +-------------+
@@ -247,7 +247,7 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_receive(
 
     /*
     **  C1: the key, which is 32 bytes 
-    **  C2: the iv, which is 16bytes
+    **  C2: the iv, which is 16 bytes
     **   +------+------+
     **   |  C1  |  C2  |
     **   +-------------+
