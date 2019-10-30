@@ -94,7 +94,6 @@ void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
 
     switch(ret) {
         case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECEIVE:
-            LOG(INFO) << "the rsa public key is \n" << tunnel->rsa_key();
             _encryption_flow_aes_negotiate(tunnel);
             break;
         case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:

@@ -4,6 +4,7 @@
 #include "string.h"
 
 #include "protocol/intimate/crypto.h"
+#include "protocol/intimate/ack.h"
 #include "core/buffer.h"
 #include "core/server.h"
 #include "crypto/rsa.h"
@@ -231,6 +232,12 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_send(
         return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
     }
 
+    /* receive ack here */
+    if(!ProxyProtoAck::on_ack_receive(tunnel, ProxyProtoAckDirect::PROXY_PROTO_ACK_TO)) {
+        LOG(ERROR) << tunnel->to_string() << ": receive ack after send aes key and iv error";
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
     return ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND;
 
 }
@@ -300,10 +307,18 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_receive(
     tunnel->aes_iv(std::string(to->get_charp_at(proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE),
         proxy::crypto::ProxyCryptoAes::AES_IV_SIZE));
 
+
+    /* send ack here */
+
+    if(!ProxyProtoAck::on_ack_send(tunnel, ProxyProtoAckDirect::PROXY_PROTO_ACK_FROM)) {
+        LOG(ERROR) << "send ack after receive aes key and iv to " << tunnel->from()->to_string()
+           << " error";
+        return ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL;
+    }
+
     return ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE;
 
 }
-
 
 
 }
