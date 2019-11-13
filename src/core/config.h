@@ -71,8 +71,19 @@ public:
         return _log_full_stop;
     }
 
+    const std::string &username() const {
+        return _username;
+    }
+
+    const std::string &password() const {
+        return _password;
+    }
+
     bool parse();
     std::string to_string() const;
+
+    static const size_t USERNAME_MAX_LENGTH;
+    static const size_t PASSWORD_MAX_LENGTH;
 
 private:
 
@@ -96,9 +107,6 @@ private:
     // the config of the authentication
     std::string _username;
     std::string _password;
-
-    static const size_t _USERNAME_MAX_LENGTH;
-    static const size_t _PASSWORD_MAX_LENGTH;
 
 };
 

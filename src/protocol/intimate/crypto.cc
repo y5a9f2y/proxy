@@ -306,6 +306,7 @@ ProxyStmEvent ProxyProtoCryptoNegotiate::on_aes_key_iv_receive(
     tunnel->aes_key(std::string(to->get_charp_at(0), proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE));
     tunnel->aes_iv(std::string(to->get_charp_at(proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE),
         proxy::crypto::ProxyCryptoAes::AES_IV_SIZE));
+    tunnel->aes_ctx_setup(proxy::crypto::ProxyCryptoAesContextType::AES_CONTEXT_DECRYPT_TYPE);
 
 
     /* send ack here */

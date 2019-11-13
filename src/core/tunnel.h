@@ -2,6 +2,7 @@
 #define PROXY_CORE_TUNNEL_H_H_H
 
 #include <memory>
+#include <string>
 #include <utility>
 #include <deque>
 
@@ -12,6 +13,7 @@
 #include "core/buffer.h"
 #include "core/socket.h"
 #include "core/stm.h"
+#include "crypto/aes.h"
 
 namespace proxy {
 namespace core {
@@ -124,11 +126,30 @@ public:
         return _to->to_string() + "->" + _from->to_string();
     }
 
+    bool aes_ctx_setup(proxy::crypto::ProxyCryptoAesContextType ty) {
+        _aes_ctx = std::make_shared<proxy::crypto::ProxyCryptoAesContext>();
+        return _aes_ctx->setup(ty, _aes_key, _aes_iv);
+    }
+
+    std::shared_ptr<proxy::crypto::ProxyCryptoAesContext> &aes_ctx() {
+        return _aes_ctx;
+    }
+
+    const std::shared_ptr<proxy::crypto::ProxyCryptoAesContext> &aes_ctx() const {
+        return _aes_ctx;
+    }
+
     ssize_t read_from_eq(size_t, std::shared_ptr<ProxyBuffer> &);
     ssize_t write_from_eq(size_t, std::shared_ptr<ProxyBuffer> &);
     ssize_t read_to_eq(size_t, std::shared_ptr<ProxyBuffer> &);
     ssize_t write_to_eq(size_t, std::shared_ptr<ProxyBuffer> &);
 
+    bool read_decrypted_byte_from(unsigned char &);
+    bool read_decrypted_byte_to(unsigned char &);
+    bool read_decrypted_4bytes_from(uint32_t &);
+    bool read_decrypted_4bytes_to(uint32_t &);
+    bool read_decrypted_string_from(size_t, std::string &);
+    bool read_decrypted_string_to(size_t, std::string &);
 
 protected:
     std::shared_ptr<ProxySocket> _from;
@@ -139,6 +160,11 @@ protected:
     std::string _rsa_key;
     std::string _aes_iv;
     std::string _aes_key;
+    std::shared_ptr<proxy::crypto::ProxyCryptoAesContext> _aes_ctx;
+
+    bool _read_decrypted_byte(unsigned char &, bool);
+    bool _read_decrypted_4bytes(uint32_t &, bool);
+    bool _read_decrypted_string(size_t, std::string &, bool);
 
 };
 

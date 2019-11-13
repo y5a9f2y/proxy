@@ -11,6 +11,7 @@
 #include "crypto/aes.h"
 #include "protocol/socks5/socks5.h"
 #include "protocol/intimate/crypto.h"
+#include "protocol/intimate/auth.h"
 
 #include "glog/logging.h"
 
@@ -44,7 +45,6 @@ void *ProxyStm::startup(void *args) {
     return nullptr;
 
 }
-
 
 void ProxyStm::_encryption_flow_startup(std::shared_ptr<ProxySocket> fd, ProxyServer *server) {
 
@@ -92,13 +92,8 @@ void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             return;
     }
 
-    switch(ret) {
-        case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECEIVE:
-            _encryption_flow_aes_negotiate(tunnel);
-            break;
-        case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
-        default:
-            return;
+    if(ret == ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_RECEIVE) {
+        _encryption_flow_aes_negotiate(tunnel);
     }
 
     return;
@@ -112,9 +107,7 @@ void ProxyStm::_encryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunn
 
     tunnel->aes_key(key_iv->key());
     tunnel->aes_iv(key_iv->iv());
-
-    LOG(INFO) << tunnel->to_string() << ": the aes key is \n" << key_iv->key();
-    LOG(INFO) << tunnel->to_string() << ": the aes iv is \n" << key_iv->iv();
+    tunnel->aes_ctx_setup(proxy::crypto::ProxyCryptoAesContextType::AES_CONTEXT_ENCRYPT_TYPE);
 
     if(tunnel->aes_key().size() != proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE) {
         LOG(ERROR) << tunnel->to_string() << ": unexpect aes key size "
@@ -142,19 +135,36 @@ void ProxyStm::_encryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             break;
     }
 
-    switch(ret) {
-        case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND:
-            // TODO
-            break;
-        case ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL:
-        default:
-            return;
+    if(ret == ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND) {
+        _encryption_flow_authenticate(tunnel);
     }
 
     return;
 
 }
 
+void ProxyStm::_encryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    ProxyStmEvent ret =
+        proxy::protocol::intimate::ProxyProtoAuthenticate::on_identification_send(tunnel);
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK:
+        case ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL:
+            ProxyStmHelper::switch_state(tunnel, ret);
+            break;
+        default:
+            LOG(ERROR) << tunnel->to_string() << ": the authentication method return unexpected "
+                << ProxyStmHelper::event2string(ret);
+    }
+
+    if(ret == ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK) {
+        // TODO
+    }
+
+    return;
+
+}
 
 void ProxyStm::_transmission_flow_startup(std::shared_ptr<ProxySocket> fd, ProxyServer *server) {
 
@@ -190,13 +200,8 @@ void ProxyStm::_decryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             return;
     }
 
-    switch(ret) {
-        case ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND:
-            _decryption_flow_aes_negotiate(tunnel);
-            break;
-        case ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL:
-        default:
-            return;
+    if(ret == ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND) {
+        _decryption_flow_aes_negotiate(tunnel);
     }
 
     return;
@@ -214,24 +219,41 @@ void ProxyStm::_decryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            LOG(ERROR) << tunnel->to_string() << ": the aes receive method return unexpected "
-                << ProxyStmHelper::event2string(ret);
+            LOG(ERROR) << "the aes receive method of " << tunnel->from()->to_string()
+                <<" return unexpected " << ProxyStmHelper::event2string(ret);
             break;
     }
 
-    switch(ret) {
-        case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE:
-            LOG(INFO) << "the aes key from " << tunnel->from()->to_string() << " is \n" 
-                << tunnel->aes_key();
-            LOG(INFO) << "the aes iv from " << tunnel->from()->to_string() << " is \n"
-                << tunnel->aes_iv();
-            break;
-        case ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL:
-        default:
-            return;
+    if(ret == ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE) {
+        _decryption_flow_authenticate(tunnel);
     }
 
     return;
+
+}
+
+void ProxyStm::_decryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    ProxyStmEvent ret =
+        proxy::protocol::intimate::ProxyProtoAuthenticate::on_identification_receive(tunnel);
+
+    switch(ret) {
+        case ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK:
+        case ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL:
+            ProxyStmHelper::switch_state(tunnel, ret);
+            break;
+        default:
+            LOG(ERROR) << "the authenticatiion method of " << tunnel->from()->to_string()
+                << " return unexpected " << ProxyStmHelper::event2string(ret);
+            break;
+    }
+
+    if(ret == ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK) {
+        // TODO
+    }
+
+    return;
+
 }
 
 const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
@@ -264,16 +286,16 @@ const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
         ProxyStmEvent::PROXY_STM_EVENT_RSA_PUBKEY_SEND,
         ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING},
 
+    {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING,
+        ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL,
+        ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
+
     {ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING,
         ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE,
         ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING},
 
     {ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING,
         ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL,
-        ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
-
-    {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING,
-        ProxyStmEvent::PROXY_STM_EVENT_RSA_NEGOTIATING_FAIL,
         ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
 
 };
@@ -300,7 +322,7 @@ const std::unordered_map<ProxyStmEvent, std::string> ProxyStmHelper::ProxyStmEve
     {ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND, "PROXY_STM_EVENT_AES_KEY_SEND"},
     {ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE, "PROXY_STM_EVENT_AES_KEY_RECEIVE"},
     {ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL, "PROXY_STM_EVENT_AES_NEGOTIATING_FAIL"},
-    {ProxyStmEvent::PROXY_STM_EVNET_AUTHENTICATING_OK, "PROXY_STM_EVNET_AUTHENTICATING_OK"},
+    {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK, "PROXY_STM_EVENT_AUTHENTICATING_OK"},
     {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL, "PROXY_STM_EVENT_AUTHENTICATING_FAIL"}
 };
 
@@ -343,7 +365,8 @@ bool ProxyStmHelper::switch_state(std::shared_ptr<ProxyTunnel> &tunnel, ProxyStm
 
     }
 
-    LOG(ERROR) << "the tunnel state is " << ProxyStmHelper::state2string(tunnel->state())
+    LOG(ERROR) << "the tunnel state of " << tunnel->from()->to_string()
+        << " is " << ProxyStmHelper::state2string(tunnel->state())
         << ", the event is " << ProxyStmHelper::event2string(ev) << ", unknown translation";
 
     return false;

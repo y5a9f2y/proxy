@@ -46,10 +46,6 @@ std::shared_ptr<ProxyCryptoRsaKeypair> ProxyCryptoRsa::generate_key_pair() {
     std::shared_ptr<char> private_key(new char[private_key_len + 1], [](char *p){delete []p;});
     std::shared_ptr<char> public_key(new char[public_key_len + 1], [](char *p){delete []p;});
 
-    LOG(INFO) << "private_key_len: " << private_key_len;
-    LOG(INFO) << "public_key_len: " << public_key_len;
-
-
     if(private_key_len != BIO_read(pri.get(), reinterpret_cast<void *>(private_key.get()),
         private_key_len)) {
         LOG(ERROR) << "read the private key from bio error";
