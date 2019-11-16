@@ -85,6 +85,15 @@ ssize_t ProxySocket::read_eq(size_t n, std::shared_ptr<ProxyBuffer> &pb) {
 
 }
 
+ssize_t ProxySocket::read(std::shared_ptr<ProxyBuffer> &pb) {
+
+    if(pb->cur == pb->size) {
+        return 0;
+    }
+    return co_read(_fd, pb->buffer + pb->cur, pb->size - pb->cur);
+
+}
+
 ssize_t ProxySocket::write_eq(size_t n, std::shared_ptr<ProxyBuffer> &pb) {
 
     size_t nbytes = n;
@@ -99,6 +108,15 @@ ssize_t ProxySocket::write_eq(size_t n, std::shared_ptr<ProxyBuffer> &pb) {
     }
 
     return nbytes;
+
+}
+
+ssize_t ProxySocket::write(std::shared_ptr<ProxyBuffer> &pb) {
+
+    if(pb->start == pb->cur) {
+        return 0;
+    }
+    return co_write(_fd, pb->buffer + pb->start, pb->cur - pb->start);
 
 }
 

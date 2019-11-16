@@ -60,6 +60,8 @@ public:
 
     ssize_t read_eq(size_t, std::shared_ptr<ProxyBuffer> &);
     ssize_t write_eq(size_t, std::shared_ptr<ProxyBuffer> &);
+    ssize_t read(std::shared_ptr<ProxyBuffer> &);
+    ssize_t write(std::shared_ptr<ProxyBuffer> &);
 
 private:
     co_socket_t *_fd;
