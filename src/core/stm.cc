@@ -1,6 +1,7 @@
 #include <exception>
 #include <memory>
 
+#include "stdlib.h"
 #include "sys/types.h"
 #include "sys/socket.h"
 
@@ -12,8 +13,13 @@
 #include "protocol/socks5/socks5.h"
 #include "protocol/intimate/crypto.h"
 #include "protocol/intimate/auth.h"
+#include "protocol/intimate/trans.h"
 
 #include "glog/logging.h"
+
+extern "C" {
+#include "coroutine/coroutine.h"
+}
 
 namespace proxy {
 namespace core {
@@ -159,12 +165,48 @@ void ProxyStm::_encryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &tunne
     }
 
     if(ret == ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK) {
-        // TODO
+        _encryption_flow_transmit(tunnel);
     }
 
     return;
 
 }
+
+void ProxyStm::_encryption_flow_transmit(std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    co_thread_t *c;
+    co_thread_t *c_r;
+
+    if(!(c = coroutine_create(
+        proxy::protocol::intimate::ProxyProtoTransmit::on_encryption_transmit,
+        reinterpret_cast<void *>(&tunnel)))) {
+
+        LOG(ERROR) << tunnel->to_string() << ": create the send coroutine error: "
+            << strerror(errno);
+        return;
+
+    }
+
+    if(!(c_r = coroutine_create(
+        proxy::protocol::intimate::ProxyProtoTransmit::on_encryption_transmit_reverse,
+        reinterpret_cast<void *>(&tunnel)))) {
+
+        LOG(ERROR) << tunnel->to_string() << ": create the receive coroutine error: "
+            << strerror(errno);
+        return;
+    
+    }
+
+    coroutine_join(c, NULL);
+    coroutine_join(c_r, NULL);
+    ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL);
+
+    LOG(INFO) << tunnel->to_string() << ": the tunnel is going to shutdown.";
+
+    return;
+
+}
+
 
 void ProxyStm::_transmission_flow_startup(std::shared_ptr<ProxySocket> fd, ProxyServer *server) {
 
@@ -278,6 +320,22 @@ const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
         ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL,
         ProxyStmState::PROXY_STM_ENCRYPTION_FAIL},
 
+    {ProxyStmState::PROXY_STM_ENCRYPTION_AUTHENTICATING,
+        ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK,
+        ProxyStmState::PROXY_STM_ENCRYPTION_TRANSMITTING},
+
+    {ProxyStmState::PROXY_STM_ENCRYPTION_AUTHENTICATING,
+        ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL,
+        ProxyStmState::PROXY_STM_ENCRYPTION_FAIL},
+
+    {ProxyStmState::PROXY_STM_ENCRYPTION_TRANSMITTING,
+        ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK,
+        ProxyStmState::PROXY_STM_ENCRYPTION_DONE},
+
+    {ProxyStmState::PROXY_STM_ENCRYPTION_TRANSMITTING,
+        ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL,
+        ProxyStmState::PROXY_STM_ENCRYPTION_FAIL},
+
     {ProxyStmState::PROXY_STM_DECRYPTION_READY,
         ProxyStmEvent::PROXY_STM_EVENT_ESTABLISH,
         ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING},
@@ -298,6 +356,10 @@ const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
         ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL,
         ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
 
+    {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING,
+        ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL,
+        ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
+
 };
 
 const std::unordered_map<ProxyStmState, std::string> ProxyStmHelper::ProxyStmStateString = {
@@ -305,13 +367,17 @@ const std::unordered_map<ProxyStmState, std::string> ProxyStmHelper::ProxyStmSta
     {ProxyStmState::PROXY_STM_ENCRYPTION_RSA_NEGOTIATING, "PROXY_STM_ENCRYPTION_RSA_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_ENCRYPTION_AES_NEGOTIATING, "PROXY_STM_ENCRYPTION_AES_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_ENCRYPTION_AUTHENTICATING, "PROXY_STM_ENCRYPTION_AUTHENTICATING"},
+    {ProxyStmState::PROXY_STM_ENCRYPTION_TRANSMITTING, "PROXY_STM_ENCRYPTION_TRANSMITTING"},
     {ProxyStmState::PROXY_STM_ENCRYPTION_FAIL, "PROXY_STM_ENCRYPTION_FAIL"},
+    {ProxyStmState::PROXY_STM_ENCRYPTION_DONE, "PROXY_STM_ENCRYPTION_DONE"},
     {ProxyStmState::PROXY_STM_TRANSMISSION_READY, "PROXY_STM_TRANSMISSION_READY"},
     {ProxyStmState::PROXY_STM_DECRYPTION_READY, "PROXY_STM_DECRYPTION_READY"},
     {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING, "PROXY_STM_DECRYPTION_RSA_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING, "PROXY_STM_DECRYPTION_AES_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING, "PROXY_STM_DECRYPTION_AUTHENTICATING"},
-    {ProxyStmState::PROXY_STM_DECRYPTION_FAIL, "PROXY_STM_DECRYPTION_FAIL"}
+    {ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING, "PROXY_STM_DECRYPTION_TRANSMITTING"},
+    {ProxyStmState::PROXY_STM_DECRYPTION_FAIL, "PROXY_STM_DECRYPTION_FAIL"},
+    {ProxyStmState::PROXY_STM_DECRYPTION_DONE, "PROXY_STM_DECRYPTION_DONE"}
 };
 
 const std::unordered_map<ProxyStmEvent, std::string> ProxyStmHelper::ProxyStmEventString = {
@@ -323,7 +389,9 @@ const std::unordered_map<ProxyStmEvent, std::string> ProxyStmHelper::ProxyStmEve
     {ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE, "PROXY_STM_EVENT_AES_KEY_RECEIVE"},
     {ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL, "PROXY_STM_EVENT_AES_NEGOTIATING_FAIL"},
     {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK, "PROXY_STM_EVENT_AUTHENTICATING_OK"},
-    {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL, "PROXY_STM_EVENT_AUTHENTICATING_FAIL"}
+    {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL, "PROXY_STM_EVENT_AUTHENTICATING_FAIL"},
+    {ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK, "PROXY_STM_EVENT_TRANSMISSION_OK"},
+    {ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL, "PROXY_STM_EVENT_TRANSMISSION_FAIL"}
 };
 
 std::string ProxyStmHelper::state2string(ProxyStmState state) {
