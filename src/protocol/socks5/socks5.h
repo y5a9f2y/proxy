@@ -4,7 +4,6 @@
 #include <memory>
 
 #include "core/tunnel.h"
-#include "core/stm.h"
 
 namespace proxy {
 namespace protocol {
@@ -14,10 +13,7 @@ class ProxyProtoSocks5 {
 
 public:
 
-    //static proxy::core::ProxyStmEvent on_establish(std::shared_ptr<proxy::core::ProxyTunnel> &);
-
-
-
+    static bool on_connect(std::shared_ptr<proxy::core::ProxyTunnel> &);
     static const char VERSION;
 
 };

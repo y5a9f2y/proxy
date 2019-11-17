@@ -82,23 +82,42 @@ ProxyStmEvent ProxyProtoTransmit::_on_encryption_transmit(std::shared_ptr<ProxyT
 
         if(flag) {
 
+
+            // TODO delete log
+            LOG(INFO) << "before read from " << tunnel->from()->to_string();
+
             ssize_t nread = tunnel->from()->read(buf0);
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
+            } else if(nread == 0) {
+                return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
+            // TODO delete log
+            LOG(INFO) << "read " << nread << " bytes from " << tunnel->from()->to_string();
+
+
             proxy::crypto::ProxyCryptoAes::aes_cfb_encrypt(tunnel->aes_ctx(), buf0, buf1);
+
+            // TODO delete log
+            LOG(INFO) << "before write " << buf1->cur - buf1->start
+                << " bytes to " << tunnel->to()->to_string();
 
             ssize_t nwrite = tunnel->to()->write_eq(buf1->cur - buf1->start, buf1);
             if(nwrite < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
+            // TODO delete log
+            LOG(INFO) << "write " << nwrite << " bytes to " << tunnel->to()->to_string();
+
         } else {
 
             ssize_t nread = tunnel->to()->read(buf0);
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
+            } else if(nread == 0) {
+                return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
             proxy::crypto::ProxyCryptoAes::aes_cfb_decrypt(tunnel->aes_ctx(), buf0, buf1);

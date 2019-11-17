@@ -90,7 +90,11 @@ ssize_t ProxySocket::read(std::shared_ptr<ProxyBuffer> &pb) {
     if(pb->cur == pb->size) {
         return 0;
     }
-    return co_read(_fd, pb->buffer + pb->cur, pb->size - pb->cur);
+    ssize_t nread = co_read(_fd, pb->buffer + pb->cur, pb->size - pb->cur);
+    if(nread > 0) {
+        pb->cur += static_cast<size_t>(nread);
+    }
+    return nread;
 
 }
 
@@ -116,7 +120,11 @@ ssize_t ProxySocket::write(std::shared_ptr<ProxyBuffer> &pb) {
     if(pb->start == pb->cur) {
         return 0;
     }
-    return co_write(_fd, pb->buffer + pb->start, pb->cur - pb->start);
+    ssize_t nwrite = co_write(_fd, pb->buffer + pb->start, pb->cur - pb->start);
+    if(nwrite > 0) {
+        pb->start += static_cast<size_t>(nwrite);
+    }
+    return nwrite;
 
 }
 

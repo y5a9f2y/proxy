@@ -291,8 +291,28 @@ void ProxyStm::_decryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &tunne
     }
 
     if(ret == ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK) {
-        // TODO
+        _decryption_flow_socks5_negotiate(tunnel);
     }
+
+    return;
+
+}
+
+
+void ProxyStm::_decryption_flow_socks5_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    if(!proxy::protocol::socks5::ProxyProtoSocks5::on_connect(tunnel)) {
+        ProxyStmHelper::switch_state(tunnel,
+            ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL);
+        return;
+    }
+
+    ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK);
+    _decryption_flow_transmit(tunnel);
+
+}
+
+void ProxyStm::_decryption_flow_transmit(std::shared_ptr<ProxyTunnel> &tunnel) {
 
     return;
 
@@ -357,8 +377,28 @@ const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
         ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
 
     {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING,
+        ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK,
+        ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING,
         ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL,
         ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING,
+        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK,
+        ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING,
+        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL,
+        ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING,
+        ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK,
+        ProxyStmState::PROXY_STM_DECRYPTION_DONE},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING,
+        ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL,
+        ProxyStmState::PROXY_STM_DECRYPTION_FAIL}
 
 };
 
@@ -375,6 +415,8 @@ const std::unordered_map<ProxyStmState, std::string> ProxyStmHelper::ProxyStmSta
     {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING, "PROXY_STM_DECRYPTION_RSA_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING, "PROXY_STM_DECRYPTION_AES_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING, "PROXY_STM_DECRYPTION_AUTHENTICATING"},
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING,
+        "PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING, "PROXY_STM_DECRYPTION_TRANSMITTING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_FAIL, "PROXY_STM_DECRYPTION_FAIL"},
     {ProxyStmState::PROXY_STM_DECRYPTION_DONE, "PROXY_STM_DECRYPTION_DONE"}
@@ -390,6 +432,10 @@ const std::unordered_map<ProxyStmEvent, std::string> ProxyStmHelper::ProxyStmEve
     {ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL, "PROXY_STM_EVENT_AES_NEGOTIATING_FAIL"},
     {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK, "PROXY_STM_EVENT_AUTHENTICATING_OK"},
     {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL, "PROXY_STM_EVENT_AUTHENTICATING_FAIL"},
+    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK,
+        "PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK"},
+    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL,
+        "PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL"},
     {ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK, "PROXY_STM_EVENT_TRANSMISSION_OK"},
     {ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL, "PROXY_STM_EVENT_TRANSMISSION_FAIL"}
 };
