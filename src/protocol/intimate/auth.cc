@@ -43,7 +43,7 @@ ProxyStmEvent ProxyProtoAuthenticate::on_identification_send(
         buf0 = std::make_shared<ProxyBuffer>(alloc_bsize); 
         buf1 = std::make_shared<ProxyBuffer>(alloc_bsize);
     } catch(const std::exception &ex) {
-        LOG(ERROR) << tunnel->to_string() 
+        LOG(ERROR) << tunnel->ep0_ep1_string()
             << ": create the buffer from authentication error: " << ex.what();
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
@@ -68,21 +68,21 @@ ProxyStmEvent ProxyProtoAuthenticate::on_identification_send(
     buf0->cur = 8 + ulen + plen;
 
     if(!proxy::crypto::ProxyCryptoAes::aes_cfb_encrypt(tunnel->aes_ctx(), buf0, buf1)) {
-        LOG(ERROR) << tunnel->to_string() << ": encrypt the authentication message error";
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": encrypt the authentication message error";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
     if(buf0->cur != buf1->cur) {
-        LOG(ERROR) << tunnel->to_string()
+        LOG(ERROR) << tunnel->ep0_ep1_string()
             << ": the length of the encrypted identification data is wrong";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
     size_t towrite = buf1->cur;
-    ssize_t nwrite = tunnel->write_to_eq(towrite, buf1);
+    ssize_t nwrite = tunnel->write_ep1_eq(towrite, buf1);
     if(nwrite < 0 || towrite != static_cast<size_t>(nwrite)) {
-        LOG(ERROR) << tunnel->to_string() << ": send the encrypted identification data error: "
-            << strerror(errno);
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << ": send the encrypted identification data error: " << strerror(errno);
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
@@ -103,59 +103,54 @@ ProxyStmEvent ProxyProtoAuthenticate::on_identification_receive(
     */
 
     uint32_t ulen;
-    if(!tunnel->read_decrypted_4bytes_from(ulen)) {
-        LOG(ERROR) << "read the length of the username from "  << tunnel->from()->to_string()
-            << " error";
+    if(!tunnel->read_decrypted_4bytes_from_ep0(ulen)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the length of the username error";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
     if(ulen > ProxyConfig::USERNAME_MAX_LENGTH) {
-        LOG(ERROR) << "the length of the username from " << tunnel->from()->to_string()
-            << " too long: " << ulen;
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": the length of the username too long: " << ulen;
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
-    LOG(INFO) << "the received length of the username from " << tunnel->from()->to_string()
-        << " is: " << ulen;
+    // TODO DELETE
+    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received length of the username is: " << ulen;
 
     std::string username;
-    if(!tunnel->read_decrypted_string_from(ulen, username)) {
-        LOG(ERROR) << "read the username from " << tunnel->from()->to_string()
-            << " error";
+    if(!tunnel->read_decrypted_string_from_ep0(ulen, username)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the username error";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
-    LOG(INFO) << "the received username from " << tunnel->from()->to_string() << " is: "
-        << username;
+    // TODO DELETE
+    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received username is: " << username;
 
     uint32_t plen;
-    if(!tunnel->read_decrypted_4bytes_from(plen)) {
-        LOG(ERROR) << "read the length of the password from " << tunnel->from()->to_string()
-            << " error";
+    if(!tunnel->read_decrypted_4bytes_from_ep0(plen)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the length of the password error";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
     if(plen > ProxyConfig::PASSWORD_MAX_LENGTH) {
-        LOG(ERROR) << "the length of the password from " << tunnel->from()->to_string()
-            << " too long: " << plen;
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": the length of the password too long: " << plen;
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
-    LOG(INFO) << "the received length of the password from " << tunnel->from()->to_string()
-        << " is: " << plen;
+    // TODO DELETE
+    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received length of the password is: " << plen;
 
     std::string password;
-    if(!tunnel->read_decrypted_string_from(plen, password)) {
-        LOG(ERROR) << "read the password from " << tunnel->from()->to_string()
-            << " error";
+    if(!tunnel->read_decrypted_string_from_ep0(plen, password)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the password error";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
-    LOG(INFO) << "the received password from " << tunnel->from()->to_string() << " is: "
-        << password;
+    // TODO DELETE
+    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received password is: " << password;
 
     if(tunnel->server()->config().username() != username || 
         tunnel->server()->config().password() != password) {
-        LOG(ERROR) << "authenticating from " << tunnel->from()->to_string()
-            << " error: wrong ugi(" << username << ", " << password << ")";
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << " authenticates error with username[" << username << "] and password["
+            << password << "]";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 

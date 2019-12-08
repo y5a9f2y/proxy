@@ -10,8 +10,8 @@ namespace protocol {
 namespace intimate {
 
 enum class ProxyProtoAckDirect {
-    PROXY_PROTO_ACK_FROM,
-    PROXY_PROTO_ACK_TO
+    PROXY_PROTO_ACK_EP0,
+    PROXY_PROTO_ACK_EP1
 };
 
 class ProxyProtoAck {

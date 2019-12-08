@@ -133,7 +133,9 @@ std::string ProxyConfig::to_string() const {
 
     oss << "log.dir:" << log_abs_dir() << "\n";
     oss << "log.max_size:" << _log_max_size << "\n";
-    oss << "log.full_stop:" << _log_full_stop;
+    oss << "log.full_stop:" << _log_full_stop << "\n";
+    oss << "auth.username:" << _username << "\n";
+    oss << "auth.password:" << _password;
 
     return oss.str();
 

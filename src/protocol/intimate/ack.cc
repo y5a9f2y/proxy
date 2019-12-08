@@ -32,25 +32,19 @@ bool ProxyProtoAck::on_ack_send(std::shared_ptr<ProxyTunnel> &tunnel, ProxyProto
 
     ssize_t nwrite;
     switch(d) {
-        case ProxyProtoAckDirect::PROXY_PROTO_ACK_FROM:
-            nwrite = tunnel->write_from_eq(1, buf);
+        case ProxyProtoAckDirect::PROXY_PROTO_ACK_EP0:
+            nwrite = tunnel->write_ep0_eq(1, buf);
             break;
-        case ProxyProtoAckDirect::PROXY_PROTO_ACK_TO:
-            nwrite = tunnel->write_to_eq(1, buf);
+        case ProxyProtoAckDirect::PROXY_PROTO_ACK_EP1:
+            nwrite = tunnel->write_ep1_eq(1, buf);
             break;
         default:
-            LOG(ERROR) << "unknown ack direction of " << tunnel->from()->to_string();
+            LOG(ERROR) << "unknown ack direction of " << tunnel->ep0_ep1_string();
             return false;
     }
 
     if(nwrite != 1) {
-        if(d == ProxyProtoAckDirect::PROXY_PROTO_ACK_FROM) {
-            LOG(ERROR) << "send the ack byte to " << tunnel->from()->to_string() << " error: "
-                << strerror(errno);
-        } else if(d == ProxyProtoAckDirect::PROXY_PROTO_ACK_TO) {
-            LOG(ERROR) << "send the ack byte to " << tunnel->to()->to_string() << " error: "
-                << strerror(errno);
-        }
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": send the ack byte error: " << strerror(errno);
         return false;
     }
 
@@ -73,36 +67,26 @@ bool ProxyProtoAck::on_ack_receive(std::shared_ptr<ProxyTunnel> &tunnel, ProxyPr
 
     ssize_t nread;
     switch(d) {
-        case ProxyProtoAckDirect::PROXY_PROTO_ACK_FROM:
-            nread = tunnel->read_from_eq(1, buf);
+        case ProxyProtoAckDirect::PROXY_PROTO_ACK_EP0:
+            nread = tunnel->read_ep0_eq(1, buf);
             break;
-        case ProxyProtoAckDirect::PROXY_PROTO_ACK_TO:
-            nread = tunnel->read_to_eq(1, buf);
+        case ProxyProtoAckDirect::PROXY_PROTO_ACK_EP1:
+            nread = tunnel->read_ep1_eq(1, buf);
             break;
         default:
-            LOG(ERROR) << "unknown ack direction of " << tunnel->from()->to_string();
+            LOG(ERROR) << "unknown ack direction of " << tunnel->ep0_ep1_string();
             return false;
     }
 
     if(nread != 1) {
-        if(d == ProxyProtoAckDirect::PROXY_PROTO_ACK_FROM) {
-            LOG(ERROR) << "receive the ack byte from " << tunnel->from()->to_string() << " error: "
-                << strerror(errno);
-        } else if(d == ProxyProtoAckDirect::PROXY_PROTO_ACK_TO) {
-            LOG(ERROR) << "receive the ack byte from " << tunnel->to()->to_string() << " error: "
-                << strerror(errno);
-        }
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << ": receive the ack byte error: " << strerror(errno);
         return false;
     }
 
     if(buf->buffer[0] != 0xf) {
-        if(d == ProxyProtoAckDirect::PROXY_PROTO_ACK_FROM) {
-            LOG(ERROR) << "receive the ack byte from " << tunnel->from()->to_string()
-				<< " error: " << buf->buffer[0];
-        } else if(d == ProxyProtoAckDirect::PROXY_PROTO_ACK_TO) {
-            LOG(ERROR) << "receive the ack byte from " << tunnel->to()->to_string()
-                << " error: " << buf->buffer[0];
-        }
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << ": receive the ack byte error: unexpected " << buf->buffer[0];
         return false;
     }
     

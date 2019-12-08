@@ -68,17 +68,17 @@ void ProxyStm::_encryption_flow_startup(std::shared_ptr<ProxySocket> fd, ProxySe
 void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
     try {
-        tunnel->to(std::make_shared<ProxySocket>(AF_INET, SOCK_STREAM, 0));
-        tunnel->to()->host(tunnel->server()->config().remote_host());
-        tunnel->to()->port(tunnel->server()->config().remote_port());
+        tunnel->ep1(std::make_shared<ProxySocket>(AF_INET, SOCK_STREAM, 0));
+        tunnel->ep1()->host(tunnel->server()->config().remote_host());
+        tunnel->ep1()->port(tunnel->server()->config().remote_port());
     } catch(const std::exception &ex) {
-        LOG(ERROR) << "create the remote socket fd from " << tunnel->from()->to_string()
+        LOG(ERROR) << "create the remote socket fd from " << tunnel->ep0()->to_string()
             << "error: " << ex.what();
         return;
     }
 
     try {
-        tunnel->to()->connect();
+        tunnel->ep1()->connect();
     } catch(const std::exception &ex) {
         LOG(ERROR) << ex.what();
         return;
@@ -93,7 +93,8 @@ void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            LOG(ERROR) << tunnel->to_string() << ": the rsa public key request return unexpected"
+            LOG(ERROR) << tunnel->ep0_ep1_string() 
+                << ": the rsa public key request return unexpected"
                 << ProxyStmHelper::event2string(ret);
             return;
     }
@@ -108,27 +109,22 @@ void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
 
 void ProxyStm::_encryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
+    using proxy::protocol::intimate::ProxyProtoCryptoNegotiate;
+    using proxy::protocol::intimate::ProxyProtoCryptoNegotiateDirect;
+
     std::shared_ptr<proxy::crypto::ProxyCryptoAesKeyAndIv> key_iv =
         proxy::crypto::ProxyCryptoAes::generate_key_and_iv();
-
     tunnel->aes_key(key_iv->key());
     tunnel->aes_iv(key_iv->iv());
     tunnel->aes_ctx_setup(proxy::crypto::ProxyCryptoAesContextType::AES_CONTEXT_ENCRYPT_TYPE);
 
-    if(tunnel->aes_key().size() != proxy::crypto::ProxyCryptoAes::AES_KEY_SIZE) {
-        LOG(ERROR) << tunnel->to_string() << ": unexpect aes key size "
-            << tunnel->aes_key().size();
-        return;
-    }
+    key_iv = proxy::crypto::ProxyCryptoAes::generate_key_and_iv();
+    tunnel->aes_key_peer(key_iv->key());
+    tunnel->aes_iv_peer(key_iv->iv());
+    tunnel->aes_ctx_peer_setup(proxy::crypto::ProxyCryptoAesContextType::AES_CONTEXT_DECRYPT_TYPE);
 
-    if(tunnel->aes_iv().size() != proxy::crypto::ProxyCryptoAes::AES_IV_SIZE) {
-        LOG(ERROR) << tunnel->to_string() << ": unexpect aes iv size "
-            << tunnel->aes_iv().size();
-        return;
-    }
-
-    ProxyStmEvent ret =
-        proxy::protocol::intimate::ProxyProtoCryptoNegotiate::on_aes_key_iv_send(tunnel);
+    ProxyStmEvent ret = ProxyProtoCryptoNegotiate::on_aes_key_iv_send(tunnel,
+        ProxyProtoCryptoNegotiateDirect::PROXY_PROTO_CRYPTO_NEGOTIATE_EP1);
 
     switch(ret) {
         case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND:
@@ -136,15 +132,21 @@ void ProxyStm::_encryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            LOG(ERROR) << tunnel->to_string() << ": the aes send method return unexpected "
+            LOG(ERROR) << tunnel->ep0_ep1_string() << ": the aes send method return unexpected "
                 << ProxyStmHelper::event2string(ret);
             break;
     }
 
+    LOG(INFO) << tunnel->ep0_ep1_string()
+        << " [aes_key:" << tunnel->aes_key()
+        << "][aes_iv:" << tunnel->aes_iv()
+        << "][aes_key_peer:" << tunnel->aes_key_peer()
+        << "][aes_iv_peer:" << tunnel->aes_iv_peer() << "]";
+
     if(ret == ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_SEND) {
         _encryption_flow_authenticate(tunnel);
     }
-
+    
     return;
 
 }
@@ -160,7 +162,8 @@ void ProxyStm::_encryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &tunne
             ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            LOG(ERROR) << tunnel->to_string() << ": the authentication method return unexpected "
+            LOG(ERROR) << tunnel->ep0_ep1_string()
+                << ": the authentication method return unexpected "
                 << ProxyStmHelper::event2string(ret);
     }
 
@@ -178,20 +181,19 @@ void ProxyStm::_encryption_flow_transmit(std::shared_ptr<ProxyTunnel> &tunnel) {
     co_thread_t *c_r;
 
     if(!(c = coroutine_create(
-        proxy::protocol::intimate::ProxyProtoTransmit::on_encryption_transmit,
+        proxy::protocol::intimate::ProxyProtoTransmit::on_enc_mode_transmit_ep0_ep1,
         reinterpret_cast<void *>(&tunnel)))) {
-
-        LOG(ERROR) << tunnel->to_string() << ": create the send coroutine error: "
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << ": create the ep0-ep1 coroutine error: "
             << strerror(errno);
         return;
-
     }
 
     if(!(c_r = coroutine_create(
-        proxy::protocol::intimate::ProxyProtoTransmit::on_encryption_transmit_reverse,
+        proxy::protocol::intimate::ProxyProtoTransmit::on_enc_mode_transmit_ep1_ep0,
         reinterpret_cast<void *>(&tunnel)))) {
-
-        LOG(ERROR) << tunnel->to_string() << ": create the receive coroutine error: "
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << ": create the ep1-ep0 coroutine error: "
             << strerror(errno);
         return;
     
@@ -199,9 +201,8 @@ void ProxyStm::_encryption_flow_transmit(std::shared_ptr<ProxyTunnel> &tunnel) {
 
     coroutine_join(c, NULL);
     coroutine_join(c_r, NULL);
-    ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL);
 
-    LOG(INFO) << tunnel->to_string() << ": the tunnel is going to shutdown.";
+    //ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL);
 
     return;
 
@@ -237,7 +238,7 @@ void ProxyStm::_decryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            LOG(ERROR) << "the rsa public key response to " << tunnel->from()->to_string()
+            LOG(ERROR) << "the rsa public key response to " << tunnel->ep0()->to_string()
                 << " return unexpected " << ProxyStmHelper::event2string(ret);
             return;
     }
@@ -252,8 +253,11 @@ void ProxyStm::_decryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunn
 
 void ProxyStm::_decryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
-    ProxyStmEvent ret =
-        proxy::protocol::intimate::ProxyProtoCryptoNegotiate::on_aes_key_iv_receive(tunnel);
+    using proxy::protocol::intimate::ProxyProtoCryptoNegotiate;
+    using proxy::protocol::intimate::ProxyProtoCryptoNegotiateDirect;
+
+    ProxyStmEvent ret = ProxyProtoCryptoNegotiate::on_aes_key_iv_receive(tunnel,
+        ProxyProtoCryptoNegotiateDirect::PROXY_PROTO_CRYPTO_NEGOTIATE_EP0);
 
     switch(ret) {
         case ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE:
@@ -261,10 +265,16 @@ void ProxyStm::_decryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &tunn
             ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            LOG(ERROR) << "the aes receive method of " << tunnel->from()->to_string()
-                <<" return unexpected " << ProxyStmHelper::event2string(ret);
+            LOG(ERROR) << tunnel->ep0_ep1_string() << ": the aes receive method return unexpected "
+                << ProxyStmHelper::event2string(ret);
             break;
     }
+
+    LOG(INFO) << tunnel->ep0_ep1_string()
+        << " [aes_key:" << tunnel->aes_key()
+        << "][aes_iv:" << tunnel->aes_iv()
+        << "][aes_key_peer:" << tunnel->aes_key_peer()
+        << "][aes_iv_peer:" << tunnel->aes_iv_peer() << "]";
 
     if(ret == ProxyStmEvent::PROXY_STM_EVENT_AES_KEY_RECEIVE) {
         _decryption_flow_authenticate(tunnel);
@@ -285,8 +295,9 @@ void ProxyStm::_decryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &tunne
             ProxyStmHelper::switch_state(tunnel, ret);
             break;
         default:
-            LOG(ERROR) << "the authenticatiion method of " << tunnel->from()->to_string()
-                << " return unexpected " << ProxyStmHelper::event2string(ret);
+            LOG(ERROR) << tunnel->ep0_ep1_string()
+                << ": the authentication method return unexpected "
+                << ProxyStmHelper::event2string(ret);
             break;
     }
 
@@ -305,10 +316,15 @@ void ProxyStm::_decryption_flow_socks5_negotiate(std::shared_ptr<ProxyTunnel> &t
         ProxyStmHelper::switch_state(tunnel,
             ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL);
         return;
+    } else {
+        ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK);
     }
 
-    ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK);
-    _decryption_flow_transmit(tunnel);
+    if(!proxy::protocol::socks5::ProxyProtoSocks5::on_request(tunnel)) {
+        return;
+    }
+
+//    _decryption_flow_transmit(tunnel);
 
 }
 
@@ -468,20 +484,21 @@ bool ProxyStmHelper::switch_state(std::shared_ptr<ProxyTunnel> &tunnel, ProxyStm
         if(tunnel->state() == ProxyStmHelper::stm_table[i].from &&
             ev == ProxyStmHelper::stm_table[i].event) {
 
-            LOG(INFO) << "the tunnel state of " << tunnel->from()->to_string()
-                << " switch from " << ProxyStmHelper::state2string(tunnel->state()) << " to "
-                << ProxyStmHelper::state2string(ProxyStmHelper::stm_table[i].to);
+//            LOG(INFO) << tunnel->ep0_ep1_string() << " switch "
+//                << ProxyStmHelper::state2string(tunnel->state()) << "->"
+//                << ProxyStmHelper::state2string(ProxyStmHelper::stm_table[i].to);
 
             tunnel->state(ProxyStmHelper::stm_table[i].to);
 
             return true;
+
         }
 
     }
 
-    LOG(ERROR) << "the tunnel state of " << tunnel->from()->to_string()
-        << " is " << ProxyStmHelper::state2string(tunnel->state())
-        << ", the event is " << ProxyStmHelper::event2string(ev) << ", unknown translation";
+//    LOG(ERROR) << "unknown translation: " << tunnel->ep0_ep1_string() << " with "
+//        << ProxyStmHelper::state2string(tunnel->state()) << "[event: "
+//        << ProxyStmHelper::event2string(ev) << "]";
 
     return false;
 

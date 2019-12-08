@@ -18,11 +18,11 @@ std::shared_ptr<ProxyCryptoAesKeyAndIv> ProxyCryptoAes::generate_key_and_iv() {
     std::string iv;
 
     for(size_t i = 0; i < ProxyCryptoAes::AES_KEY_SIZE; ++i) {
-        key.push_back(static_cast<char>(random() % 256));
+        key.push_back(static_cast<char>(random() % 26 + 'a'));
     }
 
     for(size_t i = 0; i < ProxyCryptoAes::AES_IV_SIZE; ++i) {
-        iv.push_back(static_cast<char>(random() % 256));
+        iv.push_back(static_cast<char>(random() % 26 + 'a'));
     }
 
     return std::make_shared<ProxyCryptoAesKeyAndIv>(std::move(key), std::move(iv));

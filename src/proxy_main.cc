@@ -26,6 +26,11 @@ int main(int argc, char *argv[]) {
 
     server.run();
 
+    if(!server.teardown()) {
+        LOG(ERROR) << "teardown the proxy server error, quiting";
+        return -1;
+    }
+
     return 0;
 
 }

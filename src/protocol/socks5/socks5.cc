@@ -1,4 +1,5 @@
 #include <exception>
+#include <string>
 
 #include "crypto/aes.h"
 #include "protocol/socks5/socks5.h"
@@ -25,29 +26,25 @@ bool ProxyProtoSocks5::on_connect(std::shared_ptr<ProxyTunnel> &tunnel) {
     ****************************************************/
 
     unsigned char version;
-
-    if(!tunnel->read_decrypted_byte_from(version)) {
-        LOG(ERROR) << "read the socks version from " << tunnel->from()->to_string() << " error";
+    if(!tunnel->read_decrypted_byte_from_ep0(version)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << " read the socks version error";
         return false;
     }
-
     if(version != ProxyProtoSocks5::VERSION) {
-        LOG(ERROR) << "the request from " << tunnel->from()->to_string()
-            << " require socks version: " << version;
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << " requires unexpected socks version: " << version;
         return false;
     }
 
     unsigned char nmethod;
-
-    if(!tunnel->read_decrypted_byte_from(nmethod)) {
-        LOG(ERROR) << "read the socks nmethod from " << tunnel->from()->to_string() << " error";
+    if(!tunnel->read_decrypted_byte_from_ep0(nmethod)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << " read the socks nmethod error";
         return false;
     }
 
     std::string methods;
-
-    if(!tunnel->read_decrypted_string_from(static_cast<size_t>(nmethod), methods)) {
-        LOG(ERROR) << "read the socks methods from " << tunnel->from()->to_string() << " error";
+    if(!tunnel->read_decrypted_string_from_ep0(static_cast<size_t>(nmethod), methods)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << " read the socks methods error";
         return false;
     }
 
@@ -61,12 +58,9 @@ bool ProxyProtoSocks5::on_connect(std::shared_ptr<ProxyTunnel> &tunnel) {
     **      X'80' to X'FE' RESERVED FOR PRIVATE METHODS
     **      X'FF' NO ACCEPTABLE METHODS
     ****************************************************/
-
     bool accept = false;
     for(const auto &c : methods) {
-
         std::string name;
-
         switch(c) {
             case 0x00:
                 accept = true;
@@ -82,9 +76,7 @@ bool ProxyProtoSocks5::on_connect(std::shared_ptr<ProxyTunnel> &tunnel) {
                 name = "unknown";
                 break;
         }
-
-        LOG(INFO) << "the connection from " << tunnel->from()->to_string() << " requires " << name;
-
+        LOG(INFO) << tunnel->ep0_ep1_string() << " requires " << name;
     }
 
  
@@ -94,25 +86,103 @@ bool ProxyProtoSocks5::on_connect(std::shared_ptr<ProxyTunnel> &tunnel) {
         buf0 = std::make_shared<ProxyBuffer>(2);
         buf1 = std::make_shared<ProxyBuffer>(2);
     } catch (const std::exception &ex) {
-        LOG(ERROR) << "create the buffer to response the connect request from "
-           << tunnel->from()->to_string() << " error: " << ex.what();
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << " create the buffer to response the connect request error: " << ex.what();
         return false;
     }
 
     buf0->buffer[0] = ProxyProtoSocks5::VERSION;
     if(accept) {
         buf0->buffer[1] = 0x00;
-        LOG(INFO) << "the connect request from " << tunnel->from()->to_string() << " success";
+        // TODO DELETE
+        LOG(INFO) << tunnel->ep0_ep1_string() << " connects successfully";
     } else {
         buf0->buffer[1] = 0xff;
-        LOG(INFO) << "the connect request from " << tunnel->from()->to_string()
-            << " fail: no accept method";
+        // TODO DELETE
+        LOG(INFO) << tunnel->ep0_ep1_string() << " the connect request fail: no accept method";
     }
 
-    // TODO encrypt here, the tunnel class need to be changed.
+    buf0->cur +=2;
 
-    return false;
+    if(!proxy::crypto::ProxyCryptoAes::aes_cfb_encrypt(tunnel->aes_ctx(), buf0, buf1)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": encrypt the socks5 connecting response error";
+        return false;
+    }
 
+    if(2 != tunnel->write_ep0_eq(2, buf1)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": write back the connecting response error";
+        return false;
+    }
+
+    return true;
+
+}
+
+bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
+
+    /****************************************************
+    **   +----+-----+------+------+----------+----------+
+    **   |VER | CMD |  RSV | ATYP | DST.ADDR | DST.PORT |
+    **   +----+-----+------+------+----------+----------+
+    **   | 1  |  1  | 0x00 |  1   | Variable |     2    |
+    **   +----+-----+------+------+----------+----------+
+    **   VER : 0x05
+    **   CMD :
+    **      CONNECT: 0x01
+    **      BIND: 0x02
+    **      UDP ASSOCIATE: 0x03
+    **   RSV : 0x00 reserved
+    **   ATYPE : address type of following address
+    **      IPV4 ADDRESS: 0x01
+    **      DOMAIN NAME: 0x03
+    **      IPV6 ADDRESS: 0x04
+    **   DST.ADDR: desired destination address
+    **   DST.PORT: desired destination port in network octet order
+    ****************************************************/
+
+    std::string data;
+    if(!tunnel->read_decrypted_string_from_ep0(4, data)) {
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << ": read the request protocol VER/CMD/RSV/ATYP error";
+        return false;
+    }
+
+    if(data[0] != ProxyProtoSocks5::VERSION) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": unexpected request VER with: "
+            << static_cast<int>(data[0]);
+        return false;
+    }
+
+    switch(data[1]) {
+        case 0x01:
+        case 0x02:
+        case 0x03:
+            break;
+        default:
+            LOG(ERROR) << tunnel->ep0_ep1_string() << ": unexpected request CMD with: "
+                << static_cast<int>(data[1]);
+            return false;
+    }
+
+    if(data[2] != 0x00) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": unexpected request RSV with: "
+            << static_cast<int>(data[2]);
+        return false;
+    }
+
+    switch(data[3]) {
+        case 0x01:
+        case 0x03:
+        case 0x04:
+            break;
+        default:
+            LOG(ERROR) << tunnel->ep0_ep1_string() << ": unexpected request ATYPE with: "
+                << static_cast<int>(data[3]);
+    }
+
+    LOG(INFO) << "fucking here";
+
+    return true;
 }
 
 }

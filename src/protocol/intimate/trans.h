@@ -13,19 +13,19 @@ namespace intimate {
 class ProxyProtoTransmit {
 
 public:
-    static void *on_encryption_transmit(void *);
-    static void *on_encryption_transmit_reverse(void *);
-    static void *on_decryption_transmit(void *);
-    static void *on_decryption_transmit_reverse(void *);
-    static void *on_transmit(void *);
-    static void *on_transmit_reverse(void *);
+    static void *on_enc_mode_transmit_ep0_ep1(void *);
+    static void *on_enc_mode_transmit_ep1_ep0(void *);
+    static void *on_dec_mode_transmit_ep0_ep1(void *);
+    static void *on_dec_mode_transmit_ep1_ep0(void *);
+    static void *on_trans_mode_transmit_ep0_ep1(void *);
+    static void *on_trans_mode_transmit_ep1_ep0(void *);
 
 private:
-    static proxy::core::ProxyStmEvent _on_encryption_transmit(
+    static proxy::core::ProxyStmEvent _on_enc_mode_transmit(
         std::shared_ptr<proxy::core::ProxyTunnel> &, bool);
-    static proxy::core::ProxyStmEvent _on_decryption_transmit(
+    static proxy::core::ProxyStmEvent _on_dec_mode_transmit(
         std::shared_ptr<proxy::core::ProxyTunnel> &, bool);
-    static proxy::core::ProxyStmEvent _on_transmit(
+    static proxy::core::ProxyStmEvent _on_trans_mode_transmit(
         std::shared_ptr<proxy::core::ProxyTunnel> &, bool);
 
 };
