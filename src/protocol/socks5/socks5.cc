@@ -170,21 +170,55 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
         return false;
     }
 
+    std::string address;
+    std::string address_type;
+
     switch(data[3]) {
         case 0x01:
+            address_type = "ipv4";
+            if(!tunnel->read_decrypted_string_from_ep0(4, address)) {
+                LOG(ERROR) << tunnel->ep0_ep1_string()
+                    << ": read the request DST.ADDR(ipv4) error";
+                return false;
+            }
+            //LOG(INFO) << tunnel->ep0_ep1_string() << ": "<< static_cast<size_t>(address[0]) << "."
+            //    << static_cast<size_t>(address[1]) << "."
+            //    << static_cast<size_t>(address[2]) << "."
+            //    << static_cast<size_t>(address[3]);
+            break;
         case 0x03:
+            address_type = "domain";
+            unsigned char len;
+            if(!tunnel->read_decrypted_byte_from_ep0(len)) {
+                LOG(ERROR) << tunnel->ep0_ep1_string()
+                    << ": read the request DST.ADDR(domain) error: read length error";
+                return false;
+            }
+            if(!tunnel->read_decrypted_string_from_ep0(static_cast<size_t>(len), address)) {
+                LOG(ERROR) << tunnel->ep0_ep1_string()
+                    << ": read the request DST.ADDR(domain) error: read domain name error";
+                return false;
+            }
+            break;
         case 0x04:
+            // For the ProxySwitchyOmega, it will handle the ipv6 address as the domain name
+            address_type = "ipv6";
+            if(!tunnel->read_decrypted_string_from_ep0(16, address)) {
+                LOG(ERROR) << tunnel->ep0_ep1_string()
+                    << ": read the request DST.ADDR(ipv6) error";
+                return false;
+            }
             break;
         default:
             LOG(ERROR) << tunnel->ep0_ep1_string() << ": unexpected request ATYPE with: "
                 << static_cast<int>(data[3]);
     }
 
-    LOG(INFO) << "fucking here";
 
     return true;
 }
 
+                
 }
 }
 }
