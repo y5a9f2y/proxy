@@ -94,11 +94,9 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             } else if(nread == 0) {
+                LOG(INFO) << tunnel->ep0_ep1_string() << " read 0 bytes";
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
-
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep0_ep1_string() << " read " << nread << " bytes";
 
             proxy::crypto::ProxyCryptoAes::aes_cfb_encrypt(tunnel->aes_ctx(), buf0, buf1);
 
@@ -107,8 +105,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep0_ep1_string() << " write " << nwrite << " bytes";
+            LOG(INFO) << "[STATS]" << tunnel->ep0_ep1_string() << ": " << nwrite << "B";
 
         } else {
 
@@ -116,11 +113,9 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             } else if(nread == 0) {
+                LOG(INFO) << tunnel->ep1_ep0_string() << " read 0 bytes";
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
-
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep1_ep0_string() << " read " << nread << " bytes";
 
             proxy::crypto::ProxyCryptoAes::aes_cfb_decrypt(tunnel->aes_ctx_peer(), buf0, buf1);
 
@@ -129,8 +124,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep1_ep0_string() << " write " << nwrite << " bytes";
+            LOG(INFO) << "[STATS]" << tunnel->ep1_ep0_string() << ": " << nwrite << "B";
 
         }
     
@@ -167,9 +161,6 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep0_ep1_string() << " read " << nread << " bytes";
-
             proxy::crypto::ProxyCryptoAes::aes_cfb_decrypt(tunnel->aes_ctx_peer(), buf0, buf1);
 
             ssize_t nwrite = tunnel->ep1()->write_eq(buf1->cur - buf1->start, buf1);
@@ -177,8 +168,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep0_ep1_string() << " write " << nwrite << " bytes";
+            LOG(INFO) << "[STATS]" << tunnel->ep0_ep1_string() << ": " << nwrite << "B";
 
         } else {
 
@@ -187,9 +177,6 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep1_ep0_string() << " read " << nread << " bytes";
-
             proxy::crypto::ProxyCryptoAes::aes_cfb_encrypt(tunnel->aes_ctx(), buf0, buf1);
 
             ssize_t nwrite = tunnel->ep0()->write_eq(buf1->cur - buf1->start, buf1);
@@ -197,8 +184,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep1_ep0_string() << " write " << nwrite << " bytes";
+            LOG(INFO) << "[STATS]" << tunnel->ep1_ep0_string() << ": " << nwrite << "B";
 
         }
     
@@ -234,16 +220,12 @@ ProxyStmEvent ProxyProtoTransmit::_on_trans_mode_transmit(std::shared_ptr<ProxyT
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep0_ep1_string() << " read " << nread << " bytes";
-
             ssize_t nwrite = tunnel->ep1()->write_eq(buf->cur - buf->start, buf);
             if(nwrite < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep0_ep1_string() << " write " << nwrite << "bytes";
+            LOG(INFO) << "[STATS]" << tunnel->ep0_ep1_string() << ": " << nwrite << "B";
 
         } else {
 
@@ -254,16 +236,12 @@ ProxyStmEvent ProxyProtoTransmit::_on_trans_mode_transmit(std::shared_ptr<ProxyT
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep1_ep0_string() << " read " << nread << " bytes";
-
             ssize_t nwrite = tunnel->ep0()->write_eq(buf->cur - buf->start, buf);
             if(nwrite < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            // TODO DELETE
-            LOG(INFO) << tunnel->ep1_ep0_string() << " write " << nwrite << " bytes";
+            LOG(INFO) << "[STATS]" << tunnel->ep1_ep0_string() << ": " << nwrite << "B";
 
         }
     

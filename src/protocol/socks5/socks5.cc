@@ -1,5 +1,6 @@
 #include <exception>
 #include <string>
+#include <sstream>
 
 #include "crypto/aes.h"
 #include "protocol/socks5/socks5.h"
@@ -15,7 +16,7 @@ namespace socks5 {
 
 const char ProxyProtoSocks5::VERSION = 0x05;
 
-bool ProxyProtoSocks5::on_connect(std::shared_ptr<ProxyTunnel> &tunnel) {
+bool ProxyProtoSocks5::on_handshake(std::shared_ptr<ProxyTunnel> &tunnel) {
 
     /****************************************************
     **          +----+----------+----------+
@@ -94,12 +95,8 @@ bool ProxyProtoSocks5::on_connect(std::shared_ptr<ProxyTunnel> &tunnel) {
     buf0->buffer[0] = ProxyProtoSocks5::VERSION;
     if(accept) {
         buf0->buffer[1] = 0x00;
-        // TODO DELETE
-        LOG(INFO) << tunnel->ep0_ep1_string() << " connects successfully";
     } else {
         buf0->buffer[1] = 0xff;
-        // TODO DELETE
-        LOG(INFO) << tunnel->ep0_ep1_string() << " the connect request fail: no accept method";
     }
 
     buf0->cur +=2;
@@ -140,6 +137,8 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
     **   DST.PORT: desired destination port in network octet order
     ****************************************************/
 
+    LOG(INFO) << tunnel->ep0_ep1_string() << " fucking here begin";
+
     std::string data;
     if(!tunnel->read_decrypted_string_from_ep0(4, data)) {
         LOG(ERROR) << tunnel->ep0_ep1_string()
@@ -153,10 +152,16 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
         return false;
     }
 
+    std::string cmd;
     switch(data[1]) {
         case 0x01:
+            cmd = "connect";
+            break;
         case 0x02:
+            cmd = "bind";
+            break;
         case 0x03:
+            cmd = "udp associate";
             break;
         default:
             LOG(ERROR) << tunnel->ep0_ep1_string() << ": unexpected request CMD with: "
@@ -172,6 +177,11 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
 
     std::string address;
     std::string address_type;
+    std::ostringstream oss;
+
+    // for ipv6 address
+    unsigned char n = 0;
+    unsigned char p = 0;
 
     switch(data[3]) {
         case 0x01:
@@ -181,10 +191,13 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
                     << ": read the request DST.ADDR(ipv4) error";
                 return false;
             }
-            //LOG(INFO) << tunnel->ep0_ep1_string() << ": "<< static_cast<size_t>(address[0]) << "."
-            //    << static_cast<size_t>(address[1]) << "."
-            //    << static_cast<size_t>(address[2]) << "."
-            //    << static_cast<size_t>(address[3]);
+            for(size_t i = 0; i < 4; ++i) {
+                if(i) {
+                    oss << ".";
+                }
+                oss << static_cast<size_t>(address[i]);
+            }
+            address = oss.str();
             break;
         case 0x03:
             address_type = "domain";
@@ -201,19 +214,78 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
             }
             break;
         case 0x04:
-            // For the ProxySwitchyOmega, it will handle the ipv6 address as the domain name
             address_type = "ipv6";
             if(!tunnel->read_decrypted_string_from_ep0(16, address)) {
                 LOG(ERROR) << tunnel->ep0_ep1_string()
                     << ": read the request DST.ADDR(ipv6) error";
                 return false;
             }
+            for(size_t i = 0; i < 16; ++i) {
+                if(i && (i % 2 == 0)) {
+                    oss << ":";
+                }
+                n = static_cast<uint8_t>(address[i]);
+                for(size_t j = 0; j < 2; ++j) {
+                    p = (j == 0) ? (n / 16) : (n % 16); 
+                    if(p < 10) {
+                        oss << static_cast<char>(p + '0');
+                    } else {
+                        oss << static_cast<char>(p + 'a');
+                    }
+                }
+            }
+            address = oss.str();
             break;
         default:
             LOG(ERROR) << tunnel->ep0_ep1_string() << ": unexpected request ATYPE with: "
                 << static_cast<int>(data[3]);
+            return false;
     }
 
+
+    uint16_t port = 0;
+    if(!(tunnel->read_decrypted_byte_from_ep0(n) && tunnel->read_decrypted_byte_from_ep0(p))) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the request DST.PORT error";
+        return false;
+    } else {
+        port = static_cast<uint16_t>(n) * 256 + static_cast<uint16_t>(p);
+    }
+
+    LOG(INFO) << tunnel->ep0_ep1_string() << " requests ["
+        << address_type << "]" << address << ":" << port;
+
+    if(data[3] == 0x4) {
+        LOG(ERROR) << tunnel->ep0_ep1_string() << ": the ipv6 ATYPE is not supported";
+    }
+
+    /****************************************************
+    **   +----+-----+------+------+----------+----------+
+    **   |VER | REP |  RSV | ATYP | BND.ADDR | BND.PORT |
+    **   +----+-----+------+------+----------+----------+
+    **   | 1  |  1  | 0x00 |  1   | Variable |     2    |
+    **   +----+-----+------+------+----------+----------+
+    **   VER : 0x05
+    **   REP :
+    **      succeeded: 0x00
+    **      general SOCKS server failure: 0x01
+    **      connection not allowed by ruleset: 0x02
+    **      network unreachable: 0x03
+    **      host unreachable: 0x04
+    **      connection refused: 0x05
+    **      ttl expired: 0x06
+    **      command not supported: 0x07
+    **      address type not supported: 0x08
+    **      unassigned: 0x09
+    **   RSV : 0x00 reserved
+    **   ATYPE : address type of following address
+    **      ADDRESS: 0x01
+    **      DOMAIN NAME: 0x03
+    **      IPV6 ADDRESS: 0x04
+    **   DST.ADDR: server bound address
+    **   DST.PORT: server bound port in network octet order
+    ****************************************************/
+
+    LOG(INFO) << tunnel->ep0_ep1_string() << " fucking here end";
 
     return true;
 }

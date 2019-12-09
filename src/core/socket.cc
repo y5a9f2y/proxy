@@ -62,6 +62,16 @@ void ProxySocket::connect() {
         throw std::runtime_error("connect" + to_string() + "error" + strerror(errno));
     }
 
+    addrlen = sizeof(addr);
+    if(getsockname(co_socket_get_fd(_fd), reinterpret_cast<struct sockaddr *>(&addr),
+        &addrlen) < 0) {
+        throw std::runtime_error("get the socket name which connects to " + to_string()
+            + "error: " + strerror(errno));
+    }
+
+    _host = inet_ntoa(addr.sin_addr);
+    _port = ntohs(addr.sin_port);
+
     return;
 
 }

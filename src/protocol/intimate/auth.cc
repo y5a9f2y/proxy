@@ -112,17 +112,11 @@ ProxyStmEvent ProxyProtoAuthenticate::on_identification_receive(
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
-    // TODO DELETE
-    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received length of the username is: " << ulen;
-
     std::string username;
     if(!tunnel->read_decrypted_string_from_ep0(ulen, username)) {
         LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the username error";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
-
-    // TODO DELETE
-    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received username is: " << username;
 
     uint32_t plen;
     if(!tunnel->read_decrypted_4bytes_from_ep0(plen)) {
@@ -134,17 +128,11 @@ ProxyStmEvent ProxyProtoAuthenticate::on_identification_receive(
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
 
-    // TODO DELETE
-    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received length of the password is: " << plen;
-
     std::string password;
     if(!tunnel->read_decrypted_string_from_ep0(plen, password)) {
         LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the password error";
         return ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL;
     }
-
-    // TODO DELETE
-    LOG(INFO) << tunnel->ep0_ep1_string() << ": the received password is: " << password;
 
     if(tunnel->server()->config().username() != username || 
         tunnel->server()->config().password() != password) {

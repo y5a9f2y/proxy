@@ -312,17 +312,19 @@ void ProxyStm::_decryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &tunne
 
 void ProxyStm::_decryption_flow_socks5_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
-    if(!proxy::protocol::socks5::ProxyProtoSocks5::on_connect(tunnel)) {
-        ProxyStmHelper::switch_state(tunnel,
-            ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL);
+    if(!proxy::protocol::socks5::ProxyProtoSocks5::on_handshake(tunnel)) {
+        ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_HANDSHAKE_FAIL);
         return;
-    } else {
-        ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK);
     }
 
+    ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_HANDSHAKE_OK);
+
     if(!proxy::protocol::socks5::ProxyProtoSocks5::on_request(tunnel)) {
+        ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_REQUEST_FAIL);
         return;
     }
+
+    ProxyStmHelper::switch_state(tunnel, ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_REQUEST_OK);
 
 //    _decryption_flow_transmit(tunnel);
 
@@ -394,18 +396,26 @@ const ProxyStmTranslation ProxyStmHelper::stm_table[] = {
 
     {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING,
         ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK,
-        ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING},
+        ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_HANDSHAKING},
 
     {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING,
         ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL,
         ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
 
-    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING,
-        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK,
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_HANDSHAKING,
+        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_HANDSHAKE_OK,
+        ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_REQUESTING},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_HANDSHAKING,
+        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_HANDSHAKE_FAIL,
+        ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
+
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_REQUESTING,
+        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_REQUEST_OK,
         ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING},
 
-    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING,
-        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL,
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_REQUESTING,
+        ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_REQUEST_FAIL,
         ProxyStmState::PROXY_STM_DECRYPTION_FAIL},
 
     {ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING,
@@ -431,8 +441,10 @@ const std::unordered_map<ProxyStmState, std::string> ProxyStmHelper::ProxyStmSta
     {ProxyStmState::PROXY_STM_DECRYPTION_RSA_NEGOTIATING, "PROXY_STM_DECRYPTION_RSA_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_AES_NEGOTIATING, "PROXY_STM_DECRYPTION_AES_NEGOTIATING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_AUTHENTICATING, "PROXY_STM_DECRYPTION_AUTHENTICATING"},
-    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING,
-        "PROXY_STM_DECRYPTION_SOCKS5_NEGOTIATING"},
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_HANDSHAKING,
+        "PROXY_STM_DECRYPTION_SOCKS5_HANDSHAKING"},
+    {ProxyStmState::PROXY_STM_DECRYPTION_SOCKS5_REQUESTING,
+        "PROXY_STM_DECRYPTION_SOCKS5_REQUESTING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_TRANSMITTING, "PROXY_STM_DECRYPTION_TRANSMITTING"},
     {ProxyStmState::PROXY_STM_DECRYPTION_FAIL, "PROXY_STM_DECRYPTION_FAIL"},
     {ProxyStmState::PROXY_STM_DECRYPTION_DONE, "PROXY_STM_DECRYPTION_DONE"}
@@ -448,10 +460,10 @@ const std::unordered_map<ProxyStmEvent, std::string> ProxyStmHelper::ProxyStmEve
     {ProxyStmEvent::PROXY_STM_EVENT_AES_NEGOTIATING_FAIL, "PROXY_STM_EVENT_AES_NEGOTIATING_FAIL"},
     {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_OK, "PROXY_STM_EVENT_AUTHENTICATING_OK"},
     {ProxyStmEvent::PROXY_STM_EVENT_AUTHENTICATING_FAIL, "PROXY_STM_EVENT_AUTHENTICATING_FAIL"},
-    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK,
-        "PROXY_STM_EVENT_SOCKS5_NEGOTIATING_OK"},
-    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL,
-        "PROXY_STM_EVENT_SOCKS5_NEGOTIATING_FAIL"},
+    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_HANDSHAKE_OK, "PROXY_STM_EVENT_SOCKS5_HANDSHAKE_OK"},
+    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_HANDSHAKE_FAIL, "PROXY_STM_EVENT_SOCKS5_HANDSHAKE_FAIL"},
+    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_REQUEST_OK, "PROXY_STM_EVENT_SOCKS5_REQUEST_OK"},
+    {ProxyStmEvent::PROXY_STM_EVENT_SOCKS5_REQUEST_FAIL, "PROXY_STM_EVENT_SOCKS5_REQUEST_FAIL"},
     {ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK, "PROXY_STM_EVENT_TRANSMISSION_OK"},
     {ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL, "PROXY_STM_EVENT_TRANSMISSION_FAIL"}
 };
@@ -484,9 +496,9 @@ bool ProxyStmHelper::switch_state(std::shared_ptr<ProxyTunnel> &tunnel, ProxyStm
         if(tunnel->state() == ProxyStmHelper::stm_table[i].from &&
             ev == ProxyStmHelper::stm_table[i].event) {
 
-//            LOG(INFO) << tunnel->ep0_ep1_string() << " switch "
-//                << ProxyStmHelper::state2string(tunnel->state()) << "->"
-//                << ProxyStmHelper::state2string(ProxyStmHelper::stm_table[i].to);
+            LOG(INFO) << tunnel->ep0_ep1_string() << " switch "
+                << ProxyStmHelper::state2string(tunnel->state()) << "->"
+                << ProxyStmHelper::state2string(ProxyStmHelper::stm_table[i].to);
 
             tunnel->state(ProxyStmHelper::stm_table[i].to);
 
@@ -496,9 +508,9 @@ bool ProxyStmHelper::switch_state(std::shared_ptr<ProxyTunnel> &tunnel, ProxyStm
 
     }
 
-//    LOG(ERROR) << "unknown translation: " << tunnel->ep0_ep1_string() << " with "
-//        << ProxyStmHelper::state2string(tunnel->state()) << "[event: "
-//        << ProxyStmHelper::event2string(ev) << "]";
+    LOG(ERROR) << "unknown translation: " << tunnel->ep0_ep1_string() << " with "
+        << ProxyStmHelper::state2string(tunnel->state()) << "[event: "
+        << ProxyStmHelper::event2string(ev) << "]";
 
     return false;
 

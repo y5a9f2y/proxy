@@ -13,7 +13,7 @@ class ProxyProtoSocks5 {
 
 public:
 
-    static bool on_connect(std::shared_ptr<proxy::core::ProxyTunnel> &);
+    static bool on_handshake(std::shared_ptr<proxy::core::ProxyTunnel> &);
     static bool on_request(std::shared_ptr<proxy::core::ProxyTunnel> &);
     static const char VERSION;
 
