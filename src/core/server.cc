@@ -153,7 +153,7 @@ bool ProxyServer::_teardown_coroutine_framework() {
 bool ProxyServer::_setup_listen_socket() {
 
     try {
-        _listen_socket = std::make_shared<ProxySocket>(AF_INET, SOCK_STREAM, 0);
+        _listen_socket = std::make_shared<ProxyTcpSocket>(AF_INET, 0);
     } catch (const std::runtime_error &ex) {
         LOG(ERROR) << "setup the listen socket error: " << ex.what();
         return false;

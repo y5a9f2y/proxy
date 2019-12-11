@@ -4,11 +4,13 @@
 
 #include "crypto/aes.h"
 #include "protocol/socks5/socks5.h"
+#include "protocol/dns/dns.h"
 
 #include "glog/logging.h"
 
 using proxy::core::ProxyTunnel;
 using proxy::core::ProxyBuffer;
+using proxy::protocol::dns::ProxyProtoDnsUnblockResolver;
 
 namespace proxy {
 namespace protocol {
@@ -49,6 +51,13 @@ bool ProxyProtoSocks5::on_handshake(std::shared_ptr<ProxyTunnel> &tunnel) {
         return false;
     }
 
+    /****************************************************
+    **          +----+--------+
+    **          |VER | METHOD |
+    **          +----+--------+
+    **          | 1  |   1    |
+    **          +----+--------+
+    ****************************************************/
 
     /****************************************************
     **                    Methods
@@ -242,7 +251,6 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
             return false;
     }
 
-
     uint16_t port = 0;
     if(!(tunnel->read_decrypted_byte_from_ep0(n) && tunnel->read_decrypted_byte_from_ep0(p))) {
         LOG(ERROR) << tunnel->ep0_ep1_string() << ": read the request DST.PORT error";
@@ -251,11 +259,30 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
         port = static_cast<uint16_t>(n) * 256 + static_cast<uint16_t>(p);
     }
 
-    LOG(INFO) << tunnel->ep0_ep1_string() << " requests ["
-        << address_type << "]" << address << ":" << port;
+    struct in_addr domain_addr;
+    if(data[3] == 0x03) {
+        {
+            ProxyProtoDnsUnblockResolver resolver;
+            struct in_addr *addrp = resolver.resolv(address);
+            if(!addrp) {
+                LOG(ERROR) << tunnel->ep0_ep1_string() << ": resolv " << address << " error";
+            } else {
+                domain_addr = *addrp;
+            }
+        }
+        LOG(INFO) << tunnel->ep0_ep1_string() << " requests ["
+            << address_type << "]" << address << "(" << inet_ntoa(domain_addr) << "):" << port;
+    } else {
 
-    if(data[3] == 0x4) {
-        LOG(ERROR) << tunnel->ep0_ep1_string() << ": the ipv6 ATYPE is not supported";
+        LOG(INFO) << tunnel->ep0_ep1_string() << " requests ["
+            << address_type << "]" << address << ":" << port;
+
+        if(data[3] == 0x04) {
+            LOG(ERROR) << tunnel->ep0_ep1_string() << ": the ipv6 ATYPE is not supported";
+        }
+
+        return false;
+
     }
 
     /****************************************************
@@ -284,6 +311,14 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
     **   DST.ADDR: server bound address
     **   DST.PORT: server bound port in network octet order
     ****************************************************/
+
+    switch(data[1]) {
+        case 0x01:
+            break;
+        default:
+            LOG(ERROR) << tunnel->ep0_ep1_string() << ": "
+            break;
+    }
 
     LOG(INFO) << tunnel->ep0_ep1_string() << " fucking here end";
 

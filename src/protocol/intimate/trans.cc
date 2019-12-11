@@ -94,7 +94,6 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             } else if(nread == 0) {
-                LOG(INFO) << tunnel->ep0_ep1_string() << " read 0 bytes";
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
@@ -113,7 +112,6 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             } else if(nread == 0) {
-                LOG(INFO) << tunnel->ep1_ep0_string() << " read 0 bytes";
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
@@ -159,6 +157,8 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
             ssize_t nread = tunnel->ep0()->read(buf0);
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
+            } else if(nread == 0) {
+                return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
             proxy::crypto::ProxyCryptoAes::aes_cfb_decrypt(tunnel->aes_ctx_peer(), buf0, buf1);
@@ -175,6 +175,8 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
             ssize_t nread = tunnel->ep1()->read(buf0);
             if(nread < 0) {
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
+            } else if(nread == 0) {
+                return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_OK;
             }
 
             proxy::crypto::ProxyCryptoAes::aes_cfb_encrypt(tunnel->aes_ctx(), buf0, buf1);

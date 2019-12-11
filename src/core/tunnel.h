@@ -220,24 +220,6 @@ protected:
 
 };
 
-
-class ProxyTcpTunnel : public ProxyTunnel {
-
-public:
-
-    ProxyTcpTunnel(ProxySocket *ep0, ProxySocket *ep1, ProxyServer *server, ProxyStmState state) : 
-        ProxyTunnel(ep0, ep1, server, state) {}
-
-    ProxyTcpTunnel(const std::shared_ptr<ProxySocket> &ep0,
-        const std::shared_ptr<ProxySocket> &ep1, ProxyServer *server, ProxyStmState state) :
-        ProxyTunnel(ep0, ep1, server, state) {}
-
-    ProxyTcpTunnel(std::shared_ptr<ProxySocket> &&ep0, std::shared_ptr<ProxySocket> &&ep1,
-        ProxyServer *server, ProxyStmState state) :
-        ProxyTunnel(std::move(ep0), std::move(ep1), server, state) {}
-
-};
-
 }
 }
 

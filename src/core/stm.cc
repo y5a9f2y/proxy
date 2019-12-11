@@ -54,7 +54,7 @@ void *ProxyStm::startup(void *args) {
 
 void ProxyStm::_encryption_flow_startup(std::shared_ptr<ProxySocket> fd, ProxyServer *server) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = std::make_shared<ProxyTcpTunnel>(std::move(fd),
+    std::shared_ptr<ProxyTunnel> tunnel = std::make_shared<ProxyTunnel>(std::move(fd),
         std::move(nullptr), server, ProxyStmState::PROXY_STM_ENCRYPTION_READY);
 
     server->add_tunnel(tunnel);
@@ -68,7 +68,7 @@ void ProxyStm::_encryption_flow_startup(std::shared_ptr<ProxySocket> fd, ProxySe
 void ProxyStm::_encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &tunnel) {
 
     try {
-        tunnel->ep1(std::make_shared<ProxySocket>(AF_INET, SOCK_STREAM, 0));
+        tunnel->ep1(std::make_shared<ProxyTcpSocket>(AF_INET, 0));
         tunnel->ep1()->host(tunnel->server()->config().remote_host());
         tunnel->ep1()->port(tunnel->server()->config().remote_port());
     } catch(const std::exception &ex) {
@@ -215,7 +215,7 @@ void ProxyStm::_transmission_flow_startup(std::shared_ptr<ProxySocket> fd, Proxy
 
 void ProxyStm::_decryption_flow_startup(std::shared_ptr<ProxySocket> fd, ProxyServer *server) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = std::make_shared<ProxyTcpTunnel>(std::move(fd),
+    std::shared_ptr<ProxyTunnel> tunnel = std::make_shared<ProxyTunnel>(std::move(fd),
         std::move(nullptr), server, ProxyStmState::PROXY_STM_DECRYPTION_READY);
 
     server->add_tunnel(tunnel);

@@ -29,7 +29,7 @@ public:
         _fd(fd), _host(host), _port(port) {}
     ProxySocket(const ProxySocket &) = delete;
     ProxySocket(ProxySocket &&);
-    ~ProxySocket();
+    virtual ~ProxySocket();
 
     void host(const std::string &h) {
         _host = h;
@@ -54,19 +54,87 @@ public:
     }
 
     int bind(const struct sockaddr *, socklen_t);
-    int listen(int);
-    ProxySocket *accept();
     void connect();
-
-    ssize_t read_eq(size_t, std::shared_ptr<ProxyBuffer> &);
-    ssize_t write_eq(size_t, std::shared_ptr<ProxyBuffer> &);
     ssize_t read(std::shared_ptr<ProxyBuffer> &);
     ssize_t write(std::shared_ptr<ProxyBuffer> &);
 
-private:
+    virtual std::string type() const =0;
+    virtual int listen(int) =0;
+    virtual ProxySocket *accept() =0;
+    virtual ssize_t read_eq(size_t, std::shared_ptr<ProxyBuffer> &) =0;
+    virtual ssize_t write_eq(size_t, std::shared_ptr<ProxyBuffer> &) =0;
+    virtual ssize_t sendto(std::shared_ptr<ProxyBuffer> &, int,
+        const struct sockaddr *, socklen_t) =0;
+    virtual ssize_t recvfrom(std::shared_ptr<ProxyBuffer> &, int,
+        struct sockaddr *, socklen_t *) =0;
+
+protected:
     co_socket_t *_fd;
     std::string _host;
     uint16_t _port;
+
+};
+
+
+class ProxyTcpSocket : public ProxySocket {
+
+public:
+    ProxyTcpSocket() : ProxySocket() {}
+    ProxyTcpSocket(int domain, int protocol) : ProxySocket(domain, SOCK_STREAM, protocol) {}
+    ProxyTcpSocket(co_socket_t *fd, std::string host,
+        uint16_t port) : ProxySocket(fd, host, port) {}
+    ProxyTcpSocket(ProxyTcpSocket &&fd) : ProxySocket(std::move(fd)) {}
+
+    virtual std::string type() const override{
+        return "tcp";
+    }
+
+    virtual int listen(int) override;
+    virtual ProxyTcpSocket *accept() override;
+    virtual ssize_t read_eq(size_t, std::shared_ptr<ProxyBuffer> &) override;
+    virtual ssize_t write_eq(size_t, std::shared_ptr<ProxyBuffer> &) override;
+    virtual ssize_t sendto(std::shared_ptr<ProxyBuffer> &, int,
+        const struct sockaddr *, socklen_t) override;
+    virtual ssize_t recvfrom(std::shared_ptr<ProxyBuffer> &, int,
+        struct sockaddr *, socklen_t *) override;
+
+};
+
+
+class ProxyUdpSocket : public ProxySocket {
+
+public:
+    ProxyUdpSocket() : ProxySocket() {}
+    ProxyUdpSocket(int domain, int protocol) : ProxySocket(domain, SOCK_DGRAM, protocol) {}
+    ProxyUdpSocket(co_socket_t *fd, std::string host,
+        uint16_t port) : ProxySocket(fd, host, port) {}
+    ProxyUdpSocket(ProxyUdpSocket &&fd) : ProxyUdpSocket(std::move(fd)) {}
+
+    virtual std::string type() const override{
+        return "udp";
+    }
+
+    virtual int listen(int) override{
+        return -1;
+    }
+
+    virtual ProxyUdpSocket *accept() override{
+        return nullptr;
+    }
+
+    virtual ssize_t read_eq(size_t, std::shared_ptr<ProxyBuffer> &) override {
+        return -1;
+    }
+
+    virtual ssize_t write_eq(size_t, std::shared_ptr<ProxyBuffer> &) override {
+        return -1;
+    };
+
+    virtual ssize_t sendto(std::shared_ptr<ProxyBuffer> &, int,
+        const struct sockaddr *, socklen_t) override;
+
+    virtual ssize_t recvfrom(std::shared_ptr<ProxyBuffer> &, int,
+        struct sockaddr *, socklen_t *) override;
 
 };
 
