@@ -168,7 +168,7 @@ bool ProxyServer::_setup_listen_socket() {
     }
 
     if(_listen_socket->bind(reinterpret_cast<const sockaddr *>(&addr), sizeof(addr)) < 0) {
-        LOG(ERROR) << "bind " << _config.local_host() << ":" << _config.local_port() << "error: "
+        LOG(ERROR) << "bind " << _config.local_host() << ":" << _config.local_port() << " error: "
             << strerror(errno);
         return false;
     }

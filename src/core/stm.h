@@ -26,6 +26,9 @@ enum class ProxyStmState {
     PROXY_STM_ENCRYPTION_FAIL,
     PROXY_STM_ENCRYPTION_DONE,
     PROXY_STM_TRANSMISSION_READY,
+    PROXY_STM_TRANSMISSION_TRANSMITTING,
+    PROXY_STM_TRANSMISSION_FAIL,
+    PROXY_STM_TRANSMISSION_DONE,
     PROXY_STM_DECRYPTION_READY,
     PROXY_STM_DECRYPTION_RSA_NEGOTIATING,
     PROXY_STM_DECRYPTION_AES_NEGOTIATING,
@@ -84,7 +87,6 @@ private:
     static void _encryption_flow_rsa_negotiate(std::shared_ptr<ProxyTunnel> &);
     static void _encryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &);
     static void _encryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &);
-    static void _encryption_flow_transmit(std::shared_ptr<ProxyTunnel> &);
 
     static void _transmission_flow_startup(std::shared_ptr<ProxySocket>, ProxyServer *);
 
@@ -93,7 +95,8 @@ private:
     static void _decryption_flow_aes_negotiate(std::shared_ptr<ProxyTunnel> &);
     static void _decryption_flow_authenticate(std::shared_ptr<ProxyTunnel> &);
     static void _decryption_flow_socks5_negotiate(std::shared_ptr<ProxyTunnel> &);
-    static void _decryption_flow_transmit(std::shared_ptr<ProxyTunnel> &);
+
+    static void _transmit_common(std::shared_ptr<ProxyTunnel> &);
 
 };
 
