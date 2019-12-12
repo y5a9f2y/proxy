@@ -64,19 +64,23 @@ bool ProxyConfig::_extract_and_validate(const boost::property_tree::ptree &pt) {
         _log_max_size = pt.get<int>("log.max_size", 512);
         _log_full_stop = pt.get<int>("log.full_stop", 0) ? true : false;
 
-        _username = pt.get<std::string>("auth.username");
-        _password = pt.get<std::string>("auth.password");
+        if(_mode == ProxyServerType::Encryption || _mode == ProxyServerType::Decryption) {
 
-        if(_username.size() > ProxyConfig::USERNAME_MAX_LENGTH) {
-            std::cerr << "the length of auth.username greater than "
-                << ProxyConfig::USERNAME_MAX_LENGTH << std::endl;
-            return false;
-        }
+            _username = pt.get<std::string>("auth.username");
+            _password = pt.get<std::string>("auth.password");
 
-        if(_password.size() > ProxyConfig::PASSWORD_MAX_LENGTH) {
-            std::cerr << "the length of auth.password greater than"
-                << ProxyConfig::PASSWORD_MAX_LENGTH << std::endl;
-            return false;
+            if(_username.size() > ProxyConfig::USERNAME_MAX_LENGTH) {
+                std::cerr << "the length of auth.username greater than "
+                    << ProxyConfig::USERNAME_MAX_LENGTH << std::endl;
+                return false;
+            }
+
+            if(_password.size() > ProxyConfig::PASSWORD_MAX_LENGTH) {
+                std::cerr << "the length of auth.password greater than"
+                    << ProxyConfig::PASSWORD_MAX_LENGTH << std::endl;
+                return false;
+            }
+        
         }
 
     } catch(const boost::property_tree::ptree_bad_path &bpex) {
@@ -134,8 +138,10 @@ std::string ProxyConfig::to_string() const {
     oss << "log.dir:" << log_abs_dir() << "\n";
     oss << "log.max_size:" << _log_max_size << "\n";
     oss << "log.full_stop:" << _log_full_stop << "\n";
-    oss << "auth.username:" << _username << "\n";
-    oss << "auth.password:" << _password;
+    if(_mode == ProxyServerType::Encryption || _mode == ProxyServerType::Decryption) {
+        oss << "auth.username:" << _username << "\n";
+        oss << "auth.password:" << _password;
+    }
 
     return oss.str();
 

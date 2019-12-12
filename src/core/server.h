@@ -67,6 +67,7 @@ private:
     bool _setup_coroutine_framework();
     bool _teardown_coroutine_framework();
     bool _setup_listen_socket();
+    bool _init_signals();
     void _run_loop();
 
     ProxyConfig _config;
@@ -74,6 +75,8 @@ private:
     std::priority_queue<std::weak_ptr<ProxyTunnel>,
         std::vector<std::weak_ptr<ProxyTunnel>>, ProxyServerTunnelRule> _tunnels;
     std::shared_ptr<proxy::crypto::ProxyCryptoRsaKeypair> _rsa_keypair;
+
+    static void _server_signal_handler(int);
 
 };
 

@@ -22,7 +22,7 @@ public:
 
 public:
     ProxyProtoDnsUnblockResolver() : _rs(nullptr) {}
-    struct in_addr *resolv(const std::string &);
+    bool resolv(const std::string &, std::string &);
     ~ProxyProtoDnsUnblockResolver();
 
 private:

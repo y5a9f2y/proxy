@@ -27,6 +27,7 @@ private:
         std::shared_ptr<proxy::core::ProxyTunnel> &, bool);
     static proxy::core::ProxyStmEvent _on_trans_mode_transmit(
         std::shared_ptr<proxy::core::ProxyTunnel> &, bool);
+    static const size_t _TRANSMIT_BUFFER_SIZE;
 
 };
 

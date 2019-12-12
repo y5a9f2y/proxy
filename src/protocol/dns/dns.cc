@@ -36,18 +36,18 @@ bool ProxyProtoDnsUnblockResolver::_setup() {
 
 }
 
-struct in_addr *ProxyProtoDnsUnblockResolver::resolv(const std::string &domain) {
+bool ProxyProtoDnsUnblockResolver::resolv(const std::string &domain, std::string &address) {
 
     if(!_rs) {
         if(!_setup()) {
             LOG(ERROR) << "setup the unblock resolver error";
-            return nullptr;
+            return false;
         }
     }
 
     if(!_rs->nscount) {
         LOG(ERROR) << "no nameserver is found";
-        return nullptr;
+        return false;
     }
 
     /*
@@ -65,7 +65,7 @@ struct in_addr *ProxyProtoDnsUnblockResolver::resolv(const std::string &domain) 
         resp_buf = std::make_shared<ProxyBuffer>(resp_size);
     } catch (const std::exception &ex) {
         LOG(ERROR) << "create the buffer for the resolv request/response error: " << ex.what();
-        return nullptr;
+        return false;
     }
 
     /*
@@ -76,7 +76,7 @@ struct in_addr *ProxyProtoDnsUnblockResolver::resolv(const std::string &domain) 
         reinterpret_cast<unsigned char *>(req_buf->buffer), static_cast<int>(req_size));
     if(n < 0) {
         LOG(ERROR) << "construct the resolv request error";
-        return nullptr;
+        return false;
     }
     req_buf->cur += static_cast<size_t>(n);
 
@@ -87,7 +87,7 @@ struct in_addr *ProxyProtoDnsUnblockResolver::resolv(const std::string &domain) 
         } catch(const std::exception &ex) {
             LOG(ERROR) << "create the udp socket for the resolv request/response error: "
                 << ex.what();
-            return nullptr;
+            return false;
         }
 
         ssize_t nsend;
@@ -184,10 +184,14 @@ struct in_addr *ProxyProtoDnsUnblockResolver::resolv(const std::string &domain) 
                 continue;
             }
 
+            struct in_addr u32addr;
+            const unsigned char *u32addrp;
+
             for(uint16_t j = 0; j < msg_count; ++j) {
+
                 if(ns_parserr(&msg, ns_s_an, j, &rr) < 0) {
                     LOG(ERROR) << "the response of " << domain << " from " << peer
-                        << "parse rr fail: section " << j << " error";
+                        << " parse rr fail: section " << j << " error";
                     continue;
                 }
                 rr_ty = ns_rr_type(rr);
@@ -195,15 +199,28 @@ struct in_addr *ProxyProtoDnsUnblockResolver::resolv(const std::string &domain) 
                 if(rr_ty != ns_t_a) {
                     continue;
                 }
-                return reinterpret_cast<struct in_addr *>(
-                    const_cast<unsigned char *>(ns_rr_rdata(rr)));
+
+                if(ns_rr_rdlen(rr) < 4) {
+                    LOG(ERROR) << "the response of " << domain << " from " << peer
+                        << " is only " << ns_rr_rdlen(rr) << " byte(s)";
+                    continue;
+                }
+
+                u32addr.s_addr = 0;
+                u32addrp = ns_rr_rdata(rr);
+                for(int k = 3; k >= 0; --k) {
+                    u32addr.s_addr *= 256;
+                    u32addr.s_addr += static_cast<uint32_t>(*(u32addrp + k));
+                }
+                address = inet_ntoa(u32addr);
+                return true;
 
             }
 
         }
     }
 
-    return nullptr;
+    return false;
 
 }
 

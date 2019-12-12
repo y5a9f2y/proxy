@@ -13,50 +13,83 @@ namespace proxy {
 namespace protocol {
 namespace intimate {
 
+const size_t ProxyProtoTransmit::_TRANSMIT_BUFFER_SIZE = 131072;
+
 void *ProxyProtoTransmit::on_enc_mode_transmit_ep0_ep1(void *args) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
-    ProxyProtoTransmit::_on_enc_mode_transmit(tunnel, true);
+    try {
+        std::shared_ptr<ProxyTunnel> tunnel =
+            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
+        ProxyProtoTransmit::_on_enc_mode_transmit(tunnel, true);
+    } catch (const std::exception &ex) {
+        LOG(ERROR) << "unexpected exception: " << ex.what();
+    }
     return nullptr;
 
 }
 
 void *ProxyProtoTransmit::on_enc_mode_transmit_ep1_ep0(void *args) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
-    ProxyProtoTransmit::_on_enc_mode_transmit(tunnel, false);
+    try {
+        std::shared_ptr<ProxyTunnel> tunnel =
+            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
+        ProxyProtoTransmit::_on_enc_mode_transmit(tunnel, false);
+    } catch (const std::exception &ex) {
+        LOG(ERROR) << "unexpected exception: " << ex.what();
+    }
     return nullptr;
 
 }
 
 void *ProxyProtoTransmit::on_dec_mode_transmit_ep0_ep1(void *args) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
-    ProxyProtoTransmit::_on_dec_mode_transmit(tunnel, true);
+    try {
+        std::shared_ptr<ProxyTunnel> tunnel =
+            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
+        ProxyProtoTransmit::_on_dec_mode_transmit(tunnel, true);
+    } catch (const std::exception &ex) {
+        LOG(ERROR) << "unexpected exception: " << ex.what();
+    }
+
     return nullptr;
 
 }
 
 void *ProxyProtoTransmit::on_dec_mode_transmit_ep1_ep0(void *args) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
-    ProxyProtoTransmit::_on_dec_mode_transmit(tunnel, false);
+    try {
+        std::shared_ptr<ProxyTunnel> tunnel =
+            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
+        ProxyProtoTransmit::_on_dec_mode_transmit(tunnel, false);
+    } catch (const std::exception &ex) {
+        LOG(ERROR) << "unexpected exception: " << ex.what();
+    }
     return nullptr;
 
 }
 
 void *ProxyProtoTransmit::on_trans_mode_transmit_ep0_ep1(void *args) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
-    ProxyProtoTransmit::_on_trans_mode_transmit(tunnel, true);
+    try {
+        std::shared_ptr<ProxyTunnel> tunnel =
+            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
+        ProxyProtoTransmit::_on_trans_mode_transmit(tunnel, true);
+    } catch (const std::exception &ex) {
+        LOG(ERROR) << "unexpected exception: " << ex.what();
+    }
     return nullptr;
 
 }
 
 void *ProxyProtoTransmit::on_trans_mode_transmit_ep1_ep0(void *args) {
 
-    std::shared_ptr<ProxyTunnel> tunnel = *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
-    ProxyProtoTransmit::_on_trans_mode_transmit(tunnel, false);
+    try {
+        std::shared_ptr<ProxyTunnel> tunnel =
+            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
+        ProxyProtoTransmit::_on_trans_mode_transmit(tunnel, false);
+    } catch (const std::exception &ex) {
+        LOG(ERROR) << "unexpected exception: " << ex.what();
+    }
     return nullptr;
 
 }
@@ -75,8 +108,8 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
     std::shared_ptr<ProxyBuffer> buf1;
 
     try {
-        buf0 = std::make_shared<ProxyBuffer>(4096);
-        buf1 = std::make_shared<ProxyBuffer>(4096);
+        buf0 = std::make_shared<ProxyBuffer>(_TRANSMIT_BUFFER_SIZE);
+        buf1 = std::make_shared<ProxyBuffer>(_TRANSMIT_BUFFER_SIZE);
     } catch (const std::exception &ex) {
         LOG(ERROR) << tunnel->ep0_ep1_string() << ": create the buffer for transmission error: "
             << ex.what();
@@ -139,8 +172,8 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
     std::shared_ptr<ProxyBuffer> buf1;
 
     try {
-        buf0 = std::make_shared<ProxyBuffer>(4096);
-        buf1 = std::make_shared<ProxyBuffer>(4096);
+        buf0 = std::make_shared<ProxyBuffer>(_TRANSMIT_BUFFER_SIZE);
+        buf1 = std::make_shared<ProxyBuffer>(_TRANSMIT_BUFFER_SIZE);
     } catch (const std::exception &ex) {
         LOG(ERROR) << tunnel->ep0_ep1_string() << ": create the buffer for transmission error: "
             << ex.what();
@@ -202,7 +235,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_trans_mode_transmit(std::shared_ptr<ProxyT
     std::shared_ptr<ProxyBuffer> buf;
 
     try {
-        buf = std::make_shared<ProxyBuffer>(4096);
+        buf = std::make_shared<ProxyBuffer>(_TRANSMIT_BUFFER_SIZE);
     } catch (const std::exception &ex) {
         LOG(ERROR) << tunnel->ep0_ep1_string()
             << ": create the buffer for ordinary transmission error: " << ex.what();

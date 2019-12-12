@@ -262,15 +262,11 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
     if(data[3] == 0x03) {
         std::string ip;
         {
-            struct in_addr domain_addr;
             ProxyProtoDnsUnblockResolver resolver;
-            struct in_addr *addrp = resolver.resolv(address);
-            if(!addrp) {
+            if(!resolver.resolv(address, ip)) {
                 LOG(ERROR) << tunnel->ep0_ep1_string() << ": resolv " << address << " error";
-            } else {
-                domain_addr = *addrp;
+                return false;
             }
-            ip = inet_ntoa(domain_addr);
         }
         LOG(INFO) << tunnel->ep0_ep1_string() << " requests ["
             << address_type << "]" << address << "(" << ip << "):" << port;

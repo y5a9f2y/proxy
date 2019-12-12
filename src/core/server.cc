@@ -3,9 +3,11 @@
 #include <exception>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <stdexcept>
 #include <string.h>
 #include <sys/types.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -44,6 +46,10 @@ bool ProxyServerTunnelRule::operator()(const std::weak_ptr<ProxyTunnel> &lhs,
 bool ProxyServer::setup() {
 
     if(!_daemonize()) {
+        return false;
+    }
+
+    if(!_init_signals()) {
         return false;
     }
 
@@ -121,6 +127,70 @@ bool ProxyServer::_daemonize() {
     for(size_t i = 0; i < sizeof(stdio)/sizeof(stdio[0]); ++i) {
         if(dup2(fd, stdio[i]) < 0) {
             LOG(ERROR) << "redirect fd " << stdio[i] << " to /dev/null error: " << strerror(errno);
+            return false;
+        }
+    }
+
+    return true;
+
+}
+
+void ProxyServer::_server_signal_handler(int signum) {
+
+    switch(signum) {
+        case SIGHUP:
+        case SIGUSR1:
+        case SIGUSR2:
+            // TODO reload config here
+            break;
+        case SIGINT:
+        case SIGQUIT:
+        case SIGTERM:
+            // TODO gracefully quit here
+            break;
+        default:
+            break;
+    }
+
+}
+
+bool ProxyServer::_init_signals() {
+
+    std::vector<int> ignore_sigs = {
+        SIGPIPE,
+        SIGUSR1,
+        SIGUSR2,
+        SIGCHLD,
+        SIGTSTP,
+        SIGTTIN,
+        SIGALRM,
+        SIGTTOU
+    };
+
+    std::vector<int> catch_sigs = {
+        SIGHUP,
+        SIGINT,
+        SIGQUIT,
+        SIGTERM,
+        SIGUSR1,
+        SIGUSR2
+    };
+
+    struct sigaction ignore_action;
+    ignore_action.sa_handler = SIG_IGN;
+
+    for(int sig : ignore_sigs) {
+        if(sigaction(sig, &ignore_action, NULL) < 0) {
+            LOG(ERROR) << "ignore signal " << sig << " error: " << strerror(errno);
+            return false;
+        }
+    }
+
+    struct sigaction catch_action;
+    catch_action.sa_handler = ProxyServer::_server_signal_handler;
+    for(int sig : catch_sigs) {
+        if(sigaction(sig, &catch_action, NULL) < 0) {
+            LOG(ERROR) << "install signal handler of " << sig << " error: " << strerror(errno);
             return false;
         }
     }

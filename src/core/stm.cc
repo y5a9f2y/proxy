@@ -26,27 +26,39 @@ namespace core {
 
 void *ProxyStm::startup(void *args) {
 
-    ProxyStmFlowArgs *p = (ProxyStmFlowArgs *)(args);
+    ProxyStmFlowArgs *p = nullptr;
 
-    std::shared_ptr<ProxySocket> fd(p->fd);
+    try {
 
-    switch(p->server->config().mode()) {
-        case ProxyServerType::Encryption:
-            _encryption_flow_startup(fd, p->server);
-            break;
-        case ProxyServerType::Transmission:
-            _transmission_flow_startup(fd, p->server);
-            break;
-        case ProxyServerType::Decryption:
-            _decryption_flow_startup(fd, p->server);
-            break;
-        default:
-            LOG(INFO) << "unknown mode " << static_cast<int>(p->server->config().mode())
-                << " from " << fd->to_string();
-            break;
+        p = reinterpret_cast<ProxyStmFlowArgs *>(args);
+
+        std::shared_ptr<ProxySocket> fd(p->fd);
+
+        switch(p->server->config().mode()) {
+            case ProxyServerType::Encryption:
+                _encryption_flow_startup(fd, p->server);
+                break;
+            case ProxyServerType::Transmission:
+                _transmission_flow_startup(fd, p->server);
+                break;
+            case ProxyServerType::Decryption:
+                _decryption_flow_startup(fd, p->server);
+                break;
+            default:
+                LOG(INFO) << "unknown mode " << static_cast<int>(p->server->config().mode())
+                    << " from " << fd->to_string();
+                break;
+        }
+
+    } catch (const std::exception &ex) {
+
+        LOG(ERROR) << "unexpected exception: " << ex.what();
+
     }
 
-    delete p;
+    if(!p) {
+        delete p;
+    }
 
     return nullptr;
 
