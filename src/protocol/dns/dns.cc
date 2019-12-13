@@ -210,7 +210,7 @@ bool ProxyProtoDnsUnblockResolver::resolv(const std::string &domain, std::string
                 u32addrp = ns_rr_rdata(rr);
                 for(int k = 3; k >= 0; --k) {
                     u32addr.s_addr *= 256;
-                    u32addr.s_addr += static_cast<uint32_t>(*(u32addrp + k));
+                    u32addr.s_addr += static_cast<uint8_t>(*(u32addrp + k));
                 }
                 address = inet_ntoa(u32addr);
                 return true;

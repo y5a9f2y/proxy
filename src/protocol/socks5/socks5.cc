@@ -204,7 +204,7 @@ bool ProxyProtoSocks5::on_request(std::shared_ptr<ProxyTunnel> &tunnel) {
                 if(i) {
                     oss << ".";
                 }
-                oss << static_cast<size_t>(address[i]);
+                oss << static_cast<uint32_t>(static_cast<uint8_t>(address[i]));
             }
             address = oss.str();
             break;
