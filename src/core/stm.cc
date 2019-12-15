@@ -334,10 +334,31 @@ void ProxyStm::_decryption_flow_socks5_negotiate(std::shared_ptr<ProxyTunnel> &t
 
 void ProxyStm::_transmit_common(std::shared_ptr<ProxyTunnel> &tunnel) {
 
+    using proxy::protocol::intimate::ProxyProtoTransmitArgs;
+
     co_thread_t *c;
     co_thread_t *c_r;
 
+    ProxyProtoTransmitArgs *args = nullptr;
+    ProxyProtoTransmitArgs *args_r = nullptr;
+
     void*(*fp)(void *);
+
+    try {
+        args = new ProxyProtoTransmitArgs{tunnel};
+        args_r = new ProxyProtoTransmitArgs{tunnel};
+    } catch(const std::exception &ex) {
+        LOG(ERROR) << tunnel->ep0_ep1_string()
+            << ": create the coroutine args error: " << ex.what();
+        if(args) {
+            delete args;
+        }
+        if(args_r) {
+            delete args_r;
+        }
+        return;
+    }
+
     switch(tunnel->server()->config().mode()) {
         case ProxyServerType::Encryption:
             fp = proxy::protocol::intimate::ProxyProtoTransmit::on_enc_mode_transmit_ep0_ep1;
@@ -352,10 +373,11 @@ void ProxyStm::_transmit_common(std::shared_ptr<ProxyTunnel> &tunnel) {
             return;
     }
 
-    if(!(c = coroutine_create(fp, reinterpret_cast<void *>(&tunnel)))) {
+    if(!(c = coroutine_create(fp, reinterpret_cast<void *>(args)))) {
         LOG(ERROR) << tunnel->ep0_ep1_string()
             << ": create the ep0-ep1 coroutine error: "
             << strerror(errno);
+        delete args;
         return;
     }
 
@@ -373,10 +395,11 @@ void ProxyStm::_transmit_common(std::shared_ptr<ProxyTunnel> &tunnel) {
             break;
     }
 
-    if(!(c_r = coroutine_create(fp, reinterpret_cast<void *>(&tunnel)))) {
+    if(!(c_r = coroutine_create(fp, reinterpret_cast<void *>(args_r)))) {
         LOG(ERROR) << tunnel->ep1_ep0_string()
             << ": create the ep1-ep0 coroutine error: "
             << strerror(errno);
+        delete args_r;
         return;
     }
 

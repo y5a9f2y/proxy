@@ -11,16 +11,14 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <vector>
+#include <string>
 
 #include "core/server.h"
 #include "core/stm.h"
 #include "core/tunnel.h"
 
 #include "glog/logging.h"
-
-extern "C" {
-#include "coroutine/coroutine.h"
-}
 
 namespace proxy {
 namespace core {
@@ -54,6 +52,14 @@ bool ProxyServer::setup() {
     }
 
     if(!_setup_coroutine_framework()) {
+        return false;
+    }
+
+    if(!_setup_tunnel_gc_loop()) {
+        return false;
+    }
+
+    if(!_setup_statistic_loop()) {
         return false;
     }
 
@@ -251,6 +257,105 @@ bool ProxyServer::_setup_listen_socket() {
         return false;
     }
 
+    return true;
+
+}
+
+void *ProxyServer::_tunnel_gc_loop(void *args) {
+
+    while(1) {
+        co_usleep(2000000);
+    }
+
+    return nullptr;
+
+}
+
+bool ProxyServer::_setup_tunnel_gc_loop() {
+
+    co_thread_t *c = nullptr;
+    if(!(c = coroutine_create(ProxyServer::_tunnel_gc_loop, reinterpret_cast<void *>(this)))) {
+        LOG(ERROR) << "create the tunnel gc coroutine error: " << strerror(errno);
+        return false;
+    }
+    coroutine_setdetachstate(c, COROUTINE_FLAG_NONJOINABLE);
+    return true;
+
+}
+
+void *ProxyServer::_statistic_loop(void *args) {
+
+    ProxyServer *server = reinterpret_cast<ProxyServer *>(args);
+    long double ep0_ep1_speed;
+    long double ep1_ep0_speed;
+    size_t ep0_ep1_speed_unit;
+    size_t ep1_ep0_speed_unit;
+    const std::vector<std::string> UNITS = {
+        "B/s",
+        "KB/s",
+        "MB/s",
+        "GB/s",
+        "TB/s"
+    };
+
+    while(1) {
+        if(server->_ts < 0) {
+            if((server->_ts = co_get_current_time()) < 0) {
+                LOG(ERROR) << "[STATS]init the server timestamp error";
+            }
+        } else {
+            co_time_t now = co_get_current_time();
+            if(now < 0) {
+                LOG(ERROR) << "[STATS]update the server timestamp error";
+            } else {
+
+                ep0_ep1_speed = static_cast<long double>(server->_ep0_ep1_bytes) /
+                    (static_cast<long double>(now - server->_ts) / 1.0e6);
+                ep1_ep0_speed = static_cast<long double>(server->_ep1_ep0_bytes) /
+                    (static_cast<long double>(now - server->_ts) / 1.0e6);
+                ep0_ep1_speed_unit = 0;
+                ep1_ep0_speed_unit = 0;
+
+                for(size_t i = 0; i < UNITS.size(); ++i) {
+                    if((i + 1 == UNITS.size()) || (ep0_ep1_speed-1024.0 < -1e-7)) {
+                        ep0_ep1_speed_unit = i;
+                        break;
+                    }
+                    ep0_ep1_speed = ep0_ep1_speed / 1024.0;
+                }
+
+                for(size_t i = 0; i < UNITS.size(); ++i) {
+                    if((i + 1 == UNITS.size()) || (ep1_ep0_speed-1024.0 < -1e-7)) {
+                        ep1_ep0_speed_unit = i;
+                        break;
+                    }
+                    ep1_ep0_speed = ep1_ep0_speed / 1024.0;
+                }
+
+                LOG(INFO) << "[STATS]current speed [up:"
+                    << ep0_ep1_speed << UNITS[ep0_ep1_speed_unit] << "][down:"
+                    << ep1_ep0_speed << UNITS[ep1_ep0_speed_unit] << "]";
+
+                server->_ts = now;
+                server->_ep0_ep1_bytes = 0;
+                server->_ep1_ep0_bytes = 0;
+            }
+        }
+        co_usleep(2000000);
+    }
+
+    return nullptr;
+
+}
+
+bool ProxyServer::_setup_statistic_loop() {
+
+    co_thread_t *c = nullptr;
+    if(!(c = coroutine_create(ProxyServer::_statistic_loop, reinterpret_cast<void *>(this)))) {
+        LOG(ERROR) << "create the statistic coroutine error: " << strerror(errno);
+        return false;
+    }
+    coroutine_setdetachstate(c, COROUTINE_FLAG_NONJOINABLE);
     return true;
 
 }

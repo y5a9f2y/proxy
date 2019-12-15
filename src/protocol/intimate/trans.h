@@ -10,6 +10,13 @@ namespace proxy {
 namespace protocol {
 namespace intimate {
 
+class ProxyProtoTransmitArgs {
+
+public:
+    std::shared_ptr<proxy::core::ProxyTunnel> tunnel;
+
+};
+
 class ProxyProtoTransmit {
 
 public:

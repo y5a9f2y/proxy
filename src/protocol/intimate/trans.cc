@@ -1,5 +1,6 @@
 #include <exception>
 
+#include "core/server.h"
 #include "protocol/intimate/trans.h"
 
 #include "core/buffer.h"
@@ -17,9 +18,10 @@ const size_t ProxyProtoTransmit::_TRANSMIT_BUFFER_SIZE = 131072;
 
 void *ProxyProtoTransmit::on_enc_mode_transmit_ep0_ep1(void *args) {
 
+    ProxyProtoTransmitArgs *p = reinterpret_cast<ProxyProtoTransmitArgs *>(args);
+    std::shared_ptr<ProxyTunnel> tunnel = p->tunnel;
+
     try {
-        std::shared_ptr<ProxyTunnel> tunnel =
-            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
         ProxyProtoTransmit::_on_enc_mode_transmit(tunnel, true);
     } catch (const std::exception &ex) {
         LOG(ERROR) << "unexpected exception: " << ex.what();
@@ -30,9 +32,9 @@ void *ProxyProtoTransmit::on_enc_mode_transmit_ep0_ep1(void *args) {
 
 void *ProxyProtoTransmit::on_enc_mode_transmit_ep1_ep0(void *args) {
 
+    ProxyProtoTransmitArgs *p = reinterpret_cast<ProxyProtoTransmitArgs *>(args);
+    std::shared_ptr<ProxyTunnel> tunnel = p->tunnel;
     try {
-        std::shared_ptr<ProxyTunnel> tunnel =
-            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
         ProxyProtoTransmit::_on_enc_mode_transmit(tunnel, false);
     } catch (const std::exception &ex) {
         LOG(ERROR) << "unexpected exception: " << ex.what();
@@ -43,9 +45,9 @@ void *ProxyProtoTransmit::on_enc_mode_transmit_ep1_ep0(void *args) {
 
 void *ProxyProtoTransmit::on_dec_mode_transmit_ep0_ep1(void *args) {
 
+    ProxyProtoTransmitArgs *p = reinterpret_cast<ProxyProtoTransmitArgs *>(args);
+    std::shared_ptr<ProxyTunnel> tunnel = p->tunnel;
     try {
-        std::shared_ptr<ProxyTunnel> tunnel =
-            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
         ProxyProtoTransmit::_on_dec_mode_transmit(tunnel, true);
     } catch (const std::exception &ex) {
         LOG(ERROR) << "unexpected exception: " << ex.what();
@@ -57,9 +59,9 @@ void *ProxyProtoTransmit::on_dec_mode_transmit_ep0_ep1(void *args) {
 
 void *ProxyProtoTransmit::on_dec_mode_transmit_ep1_ep0(void *args) {
 
+    ProxyProtoTransmitArgs *p = reinterpret_cast<ProxyProtoTransmitArgs *>(args);
+    std::shared_ptr<ProxyTunnel> tunnel = p->tunnel;
     try {
-        std::shared_ptr<ProxyTunnel> tunnel =
-            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
         ProxyProtoTransmit::_on_dec_mode_transmit(tunnel, false);
     } catch (const std::exception &ex) {
         LOG(ERROR) << "unexpected exception: " << ex.what();
@@ -70,9 +72,9 @@ void *ProxyProtoTransmit::on_dec_mode_transmit_ep1_ep0(void *args) {
 
 void *ProxyProtoTransmit::on_trans_mode_transmit_ep0_ep1(void *args) {
 
+    ProxyProtoTransmitArgs *p = reinterpret_cast<ProxyProtoTransmitArgs *>(args);
+    std::shared_ptr<ProxyTunnel> tunnel = p->tunnel;
     try {
-        std::shared_ptr<ProxyTunnel> tunnel =
-            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
         ProxyProtoTransmit::_on_trans_mode_transmit(tunnel, true);
     } catch (const std::exception &ex) {
         LOG(ERROR) << "unexpected exception: " << ex.what();
@@ -83,10 +85,10 @@ void *ProxyProtoTransmit::on_trans_mode_transmit_ep0_ep1(void *args) {
 
 void *ProxyProtoTransmit::on_trans_mode_transmit_ep1_ep0(void *args) {
 
+    ProxyProtoTransmitArgs *p = reinterpret_cast<ProxyProtoTransmitArgs *>(args);
+    std::shared_ptr<ProxyTunnel> tunnel = p->tunnel;
     try {
-        std::shared_ptr<ProxyTunnel> tunnel =
-            *reinterpret_cast<std::shared_ptr<ProxyTunnel> *>(args);
-        ProxyProtoTransmit::_on_trans_mode_transmit(tunnel, false);
+      ProxyProtoTransmit::_on_trans_mode_transmit(tunnel, false);
     } catch (const std::exception &ex) {
         LOG(ERROR) << "unexpected exception: " << ex.what();
     }
@@ -137,7 +139,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            LOG(INFO) << "[STATS]" << tunnel->ep0_ep1_string() << ": " << nwrite << "B";
+            tunnel->server()->add_ep0_ep1_data_amount(static_cast<int64_t>(nwrite));
 
         } else {
 
@@ -155,7 +157,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_enc_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            LOG(INFO) << "[STATS]" << tunnel->ep1_ep0_string() << ": " << nwrite << "B";
+            tunnel->server()->add_ep1_ep0_data_amount(static_cast<int64_t>(nwrite));
 
         }
     
@@ -201,7 +203,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            LOG(INFO) << "[STATS]" << tunnel->ep0_ep1_string() << ": " << nwrite << "B";
+            tunnel->server()->add_ep0_ep1_data_amount(static_cast<int64_t>(nwrite));
 
         } else {
 
@@ -219,7 +221,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_dec_mode_transmit(std::shared_ptr<ProxyTun
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            LOG(INFO) << "[STATS]" << tunnel->ep1_ep0_string() << ": " << nwrite << "B";
+            tunnel->server()->add_ep1_ep0_data_amount(static_cast<int64_t>(nwrite));
 
         }
     
@@ -260,7 +262,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_trans_mode_transmit(std::shared_ptr<ProxyT
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            LOG(INFO) << "[STATS]" << tunnel->ep0_ep1_string() << ": " << nwrite << "B";
+            tunnel->server()->add_ep0_ep1_data_amount(static_cast<int64_t>(nwrite));
 
         } else {
 
@@ -276,7 +278,7 @@ ProxyStmEvent ProxyProtoTransmit::_on_trans_mode_transmit(std::shared_ptr<ProxyT
                 return ProxyStmEvent::PROXY_STM_EVENT_TRANSMISSION_FAIL;
             }
 
-            LOG(INFO) << "[STATS]" << tunnel->ep1_ep0_string() << ": " << nwrite << "B";
+            tunnel->server()->add_ep1_ep0_data_amount(static_cast<int64_t>(nwrite));
 
         }
     
