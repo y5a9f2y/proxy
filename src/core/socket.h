@@ -23,10 +23,10 @@ namespace core {
 class ProxySocket {
 
 public:
-    ProxySocket() : _fd(nullptr), _port(0) {}
+    ProxySocket() : _fd(nullptr), _port(0), _used(false) {}
     ProxySocket(int, int, int);
     ProxySocket(co_socket_t *fd, std::string host, uint16_t port) :
-        _fd(fd), _host(host), _port(port) {}
+        _fd(fd), _host(host), _port(port), _used(true) {}
     ProxySocket(const ProxySocket &) = delete;
     ProxySocket(ProxySocket &&);
     virtual ~ProxySocket();
@@ -52,11 +52,25 @@ public:
         oss << _host << ":" << _port;
         return oss.str();
     }
+    
+    bool is_used() const {
+        return _used;
+    }
+
+    void set_used() {
+        _used = true;
+    }
+
+    void unset_used() {
+        _used = false;
+    }
+
 
     int bind(const struct sockaddr *, socklen_t);
     void connect();
     ssize_t read(std::shared_ptr<ProxyBuffer> &);
     ssize_t write(std::shared_ptr<ProxyBuffer> &);
+    void close();
 
     virtual std::string type() const =0;
     virtual int listen(int) =0;
@@ -72,6 +86,7 @@ protected:
     co_socket_t *_fd;
     std::string _host;
     uint16_t _port;
+    bool _used;
 
 };
 

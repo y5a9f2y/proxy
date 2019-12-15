@@ -59,6 +59,8 @@ bool ProxyConfig::_extract_and_validate(const boost::property_tree::ptree &pt) {
             _remote_port = pt.get<uint16_t>("proxy.remote_port");
         }
         _listen_backlog = pt.get<int>("proxy.listen_backlog");
+        _statistic_interval = pt.get<size_t>("proxy.statistic_interval", 2);
+        _max_idle_time = pt.get<size_t>("proxy.max_idle_time", 180);
 
         _log_dir = pt.get<std::string>("log.dir");
         _log_max_size = pt.get<int>("log.max_size", 512);

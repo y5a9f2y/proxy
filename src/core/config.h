@@ -55,6 +55,14 @@ public:
         return _listen_backlog;
     }
 
+    size_t statistic_interval() const {
+        return _statistic_interval;
+    }
+
+    size_t max_idle_time() const {
+        return _max_idle_time;
+    }
+
     std::string log_dir() const {
         return _log_dir;
     }
@@ -98,6 +106,8 @@ private:
     uint16_t _remote_port;
     ProxyServerType _mode;
     int _listen_backlog;
+    size_t _statistic_interval;
+    size_t _max_idle_time;
 
     // the config of the logger
     std::string _log_dir;

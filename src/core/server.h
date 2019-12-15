@@ -2,8 +2,8 @@
 #define PROXY_CORE_SERVER_H_H_H
 
 #include <memory>
-#include <queue>
 #include <vector>
+#include <list>
 
 #include "core/config.h"
 #include "core/socket.h"
@@ -17,15 +17,6 @@ namespace proxy {
 namespace core {
 
 class ProxyTunnel;
-
-
-class ProxyServerTunnelRule {
-
-public:
-    bool operator()(const std::weak_ptr<ProxyTunnel> &, const std::weak_ptr<ProxyTunnel> &);
-
-};
-
 
 class ProxyServer {
 
@@ -51,7 +42,7 @@ public:
     }
 
     void add_tunnel(const std::shared_ptr<ProxyTunnel> &u) {
-        _tunnels.push(u);
+        _tunnels.push_back(u);
     }
 
     void add_ep0_ep1_data_amount(int64_t amount) {
@@ -74,25 +65,12 @@ private:
     bool _init_signals();
     void _run_loop();
 
-    bool _no_tunnels() const {
-        return _tunnels.empty();
-    }
-
-    void _remove_tunnel() {
-        _tunnels.pop();
-    }
-
-    std::shared_ptr<ProxyTunnel> _get_least_recent_used_tunnel() {
-        return _tunnels.top().lock();
-    }
-
     ProxyConfig _config;
     co_time_t _ts;
     int64_t _ep0_ep1_bytes;
     int64_t _ep1_ep0_bytes;
     std::shared_ptr<ProxySocket> _listen_socket;
-    std::priority_queue<std::weak_ptr<ProxyTunnel>,
-        std::vector<std::weak_ptr<ProxyTunnel>>, ProxyServerTunnelRule> _tunnels;
+    std::list<std::weak_ptr<ProxyTunnel>> _tunnels;
     std::shared_ptr<proxy::crypto::ProxyCryptoRsaKeypair> _rsa_keypair;
 
     static void _server_signal_handler(int);

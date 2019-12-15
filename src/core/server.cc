@@ -23,24 +23,6 @@
 namespace proxy {
 namespace core {
 
-bool ProxyServerTunnelRule::operator()(const std::weak_ptr<ProxyTunnel> &lhs,
-        const std::weak_ptr<ProxyTunnel> &rhs) {
-
-    std::shared_ptr<ProxyTunnel> l = lhs.lock();
-    std::shared_ptr<ProxyTunnel> r = rhs.lock();
-
-    if(!l) {
-        return false;
-    }
-
-    if(!r) {
-        return true;
-    }
-
-    return l->mtime() > r->mtime();
-
-}
-
 bool ProxyServer::setup() {
 
     if(!_daemonize()) {
@@ -263,8 +245,37 @@ bool ProxyServer::_setup_listen_socket() {
 
 void *ProxyServer::_tunnel_gc_loop(void *args) {
 
+    ProxyServer *server = reinterpret_cast<ProxyServer *>(args);
+    std::list<std::weak_ptr<ProxyTunnel>>::iterator p;
+    std::list<std::weak_ptr<ProxyTunnel>>::iterator q;
+    bool del;
     while(1) {
-        co_usleep(2000000);
+        p = server->_tunnels.begin();
+        while(p != server->_tunnels.end()) {
+            del = false;
+            std::shared_ptr<ProxyTunnel> tunnel = (*p).lock();
+            if(!tunnel) {
+                del = true;
+            } else {
+                if(static_cast<size_t>(time(NULL) - tunnel->ktime()) >
+                    server->_config.max_idle_time()) {
+                    del = true;
+                }
+            }
+            if(del) {
+                q = p;
+            }
+            ++p;
+            if(del) {
+                if(tunnel) {
+                    LOG(WARNING) << "[IDLE]close the idle tunnel "
+                        << tunnel->ep0_ep1_string();
+                    tunnel->close();
+                }
+                server->_tunnels.erase(q);
+            }
+        }
+        co_usleep(static_cast<long long>(server->_config.statistic_interval()) * 1000000LL);
     }
 
     return nullptr;
@@ -341,7 +352,7 @@ void *ProxyServer::_statistic_loop(void *args) {
                 server->_ep1_ep0_bytes = 0;
             }
         }
-        co_usleep(2000000);
+        co_usleep(static_cast<long long>(server->_config.statistic_interval()) * 1000000LL);
     }
 
     return nullptr;

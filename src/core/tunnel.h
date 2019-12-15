@@ -27,20 +27,20 @@ class ProxyTunnel {
 public:
 
     ProxyTunnel(ProxySocket *ep0, ProxySocket *ep1, ProxyServer *server, ProxyStmState state) :
-        _ep0(ep0), _ep1(ep1), _server(server), _state(state), _mtime(time(NULL)) {}
+        _ep0(ep0), _ep1(ep1), _server(server), _state(state), _ktime(time(NULL)) {}
 
     ProxyTunnel(const std::shared_ptr<ProxySocket> &ep0, const std::shared_ptr<ProxySocket> &ep1,
         ProxyServer *server, ProxyStmState state): _ep0(ep0), _ep1(ep1), _server(server),
-        _state(state), _mtime(time(NULL)) {}
+        _state(state), _ktime(time(NULL)) {}
             
     ProxyTunnel(std::shared_ptr<ProxySocket> &&ep0, std::shared_ptr<ProxySocket> &&ep1,
         ProxyServer *server, ProxyStmState state) : _ep0(std::move(ep0)), _ep1(std::move(ep1)),
-        _server(server), _state(state), _mtime(time(NULL)) {}
+        _server(server), _state(state), _ktime(time(NULL)) {}
 
     virtual ~ProxyTunnel() =default;
 
-    time_t mtime() const {
-        return _mtime;
+    time_t ktime() const {
+        return _ktime;
     }
 
     ProxyStmState state() const {
@@ -60,10 +60,12 @@ public:
     }
 
     std::shared_ptr<ProxySocket> ep0() {
+        _update_ktime();
         return _ep0;
     }
 
     std::shared_ptr<ProxySocket> ep1() {
+        _update_ktime();
         return _ep1;
     }
 
@@ -184,6 +186,15 @@ public:
         return _aes_ctx_peer;
     }
 
+    void close() {
+        if(_ep0 && _ep0->is_used()) {
+            _ep0->close();
+        }
+        if(_ep1 && _ep1->is_used()) {
+            _ep1->close();
+        }
+    }
+
     ssize_t read_ep0_eq(size_t, std::shared_ptr<ProxyBuffer> &);
     ssize_t write_ep0_eq(size_t, std::shared_ptr<ProxyBuffer> &);
     ssize_t read_ep1_eq(size_t, std::shared_ptr<ProxyBuffer> &);
@@ -202,7 +213,7 @@ protected:
     std::shared_ptr<ProxySocket> _ep1;
     ProxyServer *_server;
     ProxyStmState _state;
-    time_t _mtime;
+    time_t _ktime;
 
     std::string _rsa_key;
 
@@ -217,6 +228,11 @@ protected:
     bool _read_decrypted_byte(unsigned char &, bool);
     bool _read_decrypted_4bytes(uint32_t &, bool);
     bool _read_decrypted_string(size_t, std::string &, bool);
+
+    void _update_ktime() {
+        _ktime = time(NULL);
+    }
+
 
 };
 

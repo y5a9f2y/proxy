@@ -11,17 +11,26 @@ ProxySocket::ProxySocket(int domain, int type, int protocol) :
     if(!_fd) {
         throw std::runtime_error("create the non-blocking socket error");
     }
+    _used = true;
 }
 
-ProxySocket::ProxySocket(ProxySocket &&ps) : _fd(ps._fd), _host(ps._host), _port(ps._port) {
+ProxySocket::ProxySocket(ProxySocket &&ps) : _fd(ps._fd), _host(ps._host),
+    _port(ps._port), _used(true) {
     ps._fd = nullptr;
     ps._host = "";
     ps._port = 0;
+    ps._used = false;
 }
 
 ProxySocket::~ProxySocket() {
-    if(_fd) {
+    close();
+}
+
+void ProxySocket::close() {
+    if(_used && _fd) {
         co_close(_fd);
+        _used = false;
+        _fd = nullptr;
     }
 }
 
@@ -53,6 +62,7 @@ void ProxySocket::connect() {
 
     _host = inet_ntoa(addr.sin_addr);
     _port = ntohs(addr.sin_port);
+    _used = true;
 
     return;
 

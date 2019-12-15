@@ -13,18 +13,22 @@ namespace proxy {
 namespace core {
 
 ssize_t ProxyTunnel::read_ep0_eq(size_t n, std::shared_ptr<ProxyBuffer> &buffer) {
+    _update_ktime();
     return _ep0->read_eq(n, buffer);
 }
 
 ssize_t ProxyTunnel::write_ep0_eq(size_t n, std::shared_ptr<ProxyBuffer> &buffer) {
+    _update_ktime();
     return _ep0->write_eq(n, buffer);
 }
 
 ssize_t ProxyTunnel::read_ep1_eq(size_t n, std::shared_ptr<ProxyBuffer> &buffer) {
+    _update_ktime();
     return _ep1->read_eq(n, buffer);
 }
 
 ssize_t ProxyTunnel::write_ep1_eq(size_t n, std::shared_ptr<ProxyBuffer> &buffer) {
+    _update_ktime();
     return _ep1->write_eq(n, buffer);
 }
 
