@@ -11,8 +11,12 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <functional>
 #include <vector>
 #include <string>
+
+#include "boost/filesystem.hpp"
+#include "boost/filesystem/fstream.hpp"
 
 #include "core/server.h"
 #include "core/stm.h"
@@ -23,6 +27,8 @@
 namespace proxy {
 namespace core {
 
+ProxyServer *ProxyServerSignalHandler::server = nullptr;
+
 bool ProxyServer::setup() {
 
     if(!_daemonize()) {
@@ -30,6 +36,10 @@ bool ProxyServer::setup() {
     }
 
     if(!_init_signals()) {
+        return false;
+    }
+
+    if(!_create_pid_file()) {
         return false;
     }
 
@@ -123,22 +133,26 @@ bool ProxyServer::_daemonize() {
 
 }
 
-void ProxyServer::_server_signal_handler(int signum) {
+bool ProxyServer::_create_pid_file() {
 
-    switch(signum) {
-        case SIGHUP:
-        case SIGUSR1:
-        case SIGUSR2:
-            // TODO reload config here
-            break;
-        case SIGINT:
-        case SIGQUIT:
-        case SIGTERM:
-            // TODO gracefully quit here
-            break;
-        default:
-            break;
+    boost::filesystem::path pidfile =
+        boost::filesystem::path(config().log_dir()) / "proxy.pid";
+
+    if(boost::filesystem::exists(pidfile) && !boost::filesystem::is_regular_file(pidfile)) {
+        LOG(ERROR) << "the pid file " << pidfile.string() << " exists and is not a regular file";
+        return false;
     }
+    
+    try {
+        boost::filesystem::ofstream ofs(pidfile);
+        ofs << getpid();
+        ofs.close();
+    } catch (const std::exception &ex) {
+        LOG(ERROR) << "create the pid file " << pidfile.string() << " error: " << ex.what();
+        return false;
+    }
+
+    return true;
 
 }
 
@@ -174,8 +188,10 @@ bool ProxyServer::_init_signals() {
         }
     }
 
+    ProxyServerSignalHandler::server = this;
+
     struct sigaction catch_action;
-    catch_action.sa_handler = ProxyServer::_server_signal_handler;
+    catch_action.sa_handler = ProxyServerSignalHandler::server_signal_handler;
     for(int sig : catch_sigs) {
         if(sigaction(sig, &catch_action, NULL) < 0) {
             LOG(ERROR) << "install signal handler of " << sig << " error: " << strerror(errno);
@@ -397,6 +413,27 @@ void ProxyServer::_run_loop() {
 
         coroutine_setdetachstate(c, COROUTINE_FLAG_NONJOINABLE);
 
+    }
+
+}
+
+void ProxyServerSignalHandler::server_signal_handler(int signum) {
+
+    switch(signum) {
+        case SIGHUP:
+            ProxyServerSignalHandler::server->config().reload();
+            break;
+        case SIGUSR1:
+        case SIGUSR2:
+            LOG(INFO) << ProxyServerSignalHandler::server->config().to_string();
+            break;
+        case SIGINT:
+        case SIGQUIT:
+        case SIGTERM:
+            LOG(INFO) << "receiving signal " << signum << ", the server is going to stop";
+            _exit(signum);
+        default:
+            break;
     }
 
 }

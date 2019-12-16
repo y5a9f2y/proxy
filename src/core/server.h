@@ -33,6 +33,10 @@ public:
         return _config;
     }
 
+    ProxyConfig &config() {
+        return _config;
+    }
+
     std::shared_ptr<proxy::crypto::ProxyCryptoRsaKeypair> rsa_keypair() {
         return _rsa_keypair;
     }
@@ -63,6 +67,7 @@ private:
     bool _setup_tunnel_gc_loop();
     bool _setup_statistic_loop();
     bool _init_signals();
+    bool _create_pid_file();
     void _run_loop();
 
     ProxyConfig _config;
@@ -73,9 +78,17 @@ private:
     std::list<std::weak_ptr<ProxyTunnel>> _tunnels;
     std::shared_ptr<proxy::crypto::ProxyCryptoRsaKeypair> _rsa_keypair;
 
-    static void _server_signal_handler(int);
     static void *_tunnel_gc_loop(void *);
     static void *_statistic_loop(void *);
+    static void _server_signal_handler(int);
+
+};
+
+class ProxyServerSignalHandler {
+
+public:
+    static void server_signal_handler(int);
+    static ProxyServer *server;
 
 };
 

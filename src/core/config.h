@@ -21,7 +21,8 @@ class ProxyConfig {
 
 public:
 
-    ProxyConfig(const std::string &path) : _config_path(path) {}
+    ProxyConfig(const std::string &path) :
+        _config_path(boost::filesystem::absolute(boost::filesystem::path(path)).string()) {}
 
     std::string config_path() const {
         return _config_path;
@@ -88,6 +89,7 @@ public:
     }
 
     bool parse();
+    bool reload();
     std::string to_string() const;
 
     static const size_t USERNAME_MAX_LENGTH;
@@ -95,6 +97,7 @@ public:
 
 private:
 
+    bool _load_config(boost::property_tree::ptree &, bool);
     bool _extract_and_validate(const boost::property_tree::ptree &);
 
     std::string _config_path;
@@ -117,6 +120,12 @@ private:
     // the config of the authentication
     std::string _username;
     std::string _password;
+
+    static const size_t DEFAULT_STATISTIC_INTERVAL;
+    static const size_t DEFAULT_MAX_IDLE_TIME;
+    static const int DEFAULT_LOG_MAX_SIZE;
+    static const int DEFAULT_LOG_FULL_STOP;
+     
 
 };
 
